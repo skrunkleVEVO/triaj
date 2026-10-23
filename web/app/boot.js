@@ -2,7 +2,7 @@
 import * as P from './lib/platform.js';
 import { session, showGate, mountAccount } from './lib/account.js';
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
 
 let cloud = null, booted = false, gate = null;
 

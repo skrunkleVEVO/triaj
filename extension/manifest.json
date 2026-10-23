@@ -1,20 +1,40 @@
 {
   "manifest_version": 3,
   "name": "Triaj Companion",
-  "version": "3.0.0",
-  "description": "Lets the Triaj website sync Canvas and private calendars with your sign-in, and save course files to Downloads.",
-  "permissions": ["storage", "scripting", "activeTab"],
-  "optional_permissions": ["downloads"],
-  "optional_host_permissions": ["https://*/*"],
+  "version": "3.1.0",
+  "description": "The Triaj focus timer on your toolbar, site blocking while you focus, and Canvas sync with your sign-in.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "alarms",
+    "notifications",
+    "offscreen",
+    "declarativeNetRequest"
+  ],
+  "optional_permissions": [
+    "downloads"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"],
+    "scripts": [
+      "background.js"
+    ],
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["https://skrunklevevo.github.io/triaj/*", "http://localhost/*", "http://127.0.0.1/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://skrunklevevo.github.io/triaj/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],
@@ -29,8 +49,16 @@
     "128": "icons/icon128.png"
   },
   "commands": {
+    "toggle-timer": {
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
+      "description": "Start or pause the focus timer"
+    },
     "open-triaj": {
-      "suggested_key": { "default": "Alt+Shift+P" },
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
       "description": "Open Triaj"
     }
   },
@@ -38,7 +66,24 @@
     "gecko": {
       "id": "companion@triaj.skrunklevevo.github.io",
       "strict_min_version": "128.0",
-      "data_collection_permissions": { "required": ["none"] }
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "blocked.html",
+        "blocked.js",
+        "shared.css",
+        "icons/icon48.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }

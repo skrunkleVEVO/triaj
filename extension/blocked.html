@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Back to focus · Triaj</title><link rel="icon" href="icons/icon32.png"><link rel="stylesheet" href="shared.css">
+<style>
+html,body{height:100%}
+body{display:flex;align-items:center;justify-content:center;padding:24px;
+  background-image:linear-gradient(color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px);background-size:28px 28px}
+.tag{position:relative;width:min(440px,100%);background:var(--card);border:1px solid var(--line);border-left:8px solid var(--now);border-radius:6px 16px 16px 6px;padding:30px 28px 26px;box-shadow:0 24px 60px rgba(10,15,40,.12)}
+.tag:before{content:"";position:absolute;left:14px;top:22px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--line)}
+.site{font:600 14px var(--display);color:var(--mute);margin:0 0 6px 18px}
+h1{font-size:30px;line-height:1.1;font-weight:800;font-stretch:96%;margin:0 0 14px}
+.clock{font:800 64px/1 var(--display);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--now)}
+.on{font-size:15px;margin:6px 0 22px;color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .b{flex:1;min-width:150px;padding:11px}
+.note{margin-top:14px}
+</style></head>
+<body>
+<main class="tag" aria-live="polite">
+  <p class="site" id="site"></p>
+  <h1 id="head">This can wait until your break.</h1>
+  <div class="clock" id="clock">--:--</div>
+  <p class="on" id="on"></p>
+  <div class="row"><button class="b" id="back">Back to work</button><button class="b mute" id="pass">Let me in for 5 minutes</button></div>
+  <p class="s note">Blocking ends on its own when the focus round does. Change the list on Triaj's Focus page.</p>
+</main>
+<script src="blocked.js"></script>
+</body></html>

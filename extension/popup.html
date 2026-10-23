@@ -1,11 +1,40 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css"><style>body{width:320px}</style></head>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css">
+<style>
+body{width:340px}
+.c{text-align:center}
+.phase{display:inline-block;font:700 12px var(--display);padding:3px 10px;border-radius:20px;background:var(--soft);color:var(--pri)}
+.phase.brk{background:color-mix(in srgb,var(--later) 16%,var(--card));color:var(--later)}
+.time{font:800 52px/1.05 var(--display);font-stretch:82%;font-variant-numeric:tabular-nums;margin:6px 0 0;color:var(--ink)}
+.time.brk{color:var(--later)}
+.task{font-weight:700;margin:6px 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pills{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.pill{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:16px;padding:4px 10px;font:600 12px var(--display);cursor:pointer}
+.pill.on{background:var(--pri);border-color:var(--pri);color:var(--onpri)}
+.bar{height:5px;background:var(--soft);border-radius:3px;overflow:hidden;margin-top:9px}
+.bar span{display:block;height:100%;background:var(--pri)}
+.due div{font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.due div:last-child{border:0}
+.due span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.due i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:6px;vertical-align:1px}
+.due .n{background:var(--now)}.due .o{background:var(--soon)}.due .l{background:var(--later)}
+.blk{display:flex;align-items:center;gap:10px}
+.blk .t{flex:1}
+.sw{position:relative;width:38px;height:22px;flex:none;border-radius:11px;background:var(--line);border:0;cursor:pointer;padding:0}
+.sw:after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.sw.on{background:var(--now)}.sw.on:after{left:19px}
+.hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.foot{text-align:center;font-size:11px;color:var(--mute);padding:4px 8px 10px}
+</style></head>
 <body>
-<div class="head"><img src="icons/icon32.png" width="22" height="22" alt="">Triaj companion</div>
+<div class="head"><img src="icons/icon32.png" width="22" height="22" alt="">Triaj<span class="sp"></span><button id="open">Open Triaj</button></div>
 <div class="main">
-  <div class="card" id="tab"></div>
-  <div class="card"><b>What this does</b><div class="s" style="margin-top:4px">Lets the Triaj website read Canvas and calendar feeds with your sign-in, and save course files to Downloads. Your planner itself lives on the website and in your account.</div></div>
-  <button class="b" id="open">Open Triaj ↗</button>
+  <div class="card c" id="timer"></div>
+  <div class="card" id="block"></div>
+  <div class="card" id="today"></div>
+  <div class="card" id="sync"></div>
+  <div class="row" style="margin-top:0"><button class="b sec" data-open="export">Export for AI</button></div>
 </div>
+<div class="foot">Alt+Shift+F starts or pauses the timer</div>
 <script type="module" src="popup.js"></script>
 </body></html>

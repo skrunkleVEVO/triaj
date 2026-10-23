@@ -9,6 +9,7 @@ import { makeApi, listCourseFiles, listItemFiles, downloadAll, cleanName, blobUr
 import { ext } from './lib/platform.js';
 import * as bridge from './lib/bridge.js';
 import { session, companionHelp, isPhone } from './lib/account.js';
+import { installable, install } from './lib/install.js';
 
 /* ================= state ================= */
 const ME = 'page:' + Math.random().toString(36).slice(2);
@@ -276,7 +277,7 @@ ACT.setCfg = () => {
   if ($('cfa')) c.ahead = +$('cfa').value;
   save(); render();
 };
-ACT.setTheme = (k) => { st.cfg.theme = k; save(); applyTheme(); render(); };
+ACT.setTheme = (k) => { st.cfg.theme = k; st.cfg.themePicked = true; save(); applyTheme(); render(); };
 ACT.setMode = (m) => { st.cfg.mode = m; save(); applyTheme(); render(); };
 ACT.setFlag = (k) => { const el = EL; st.cfg[k] = el.checked; save(); if (k === 'digest') send({ cmd: 'reschedule' }); if (k === 'sound') send({ cmd: 'timer', op: 'ambient' }); };
 ACT.digestTime = () => { const el = EL; st.cfg.digestTime = el.value || '08:00'; save(); send({ cmd: 'reschedule' }); };
@@ -533,6 +534,7 @@ function viewBackup() {
     '<li>Moving over from the My Planner extension? There: More → Backups → Back up now. Here: Restore and pick that file.</li></ol></div>';
   return '<div class="cols"><div>' + main + restoreCard(false) + '</div><div>' + how + snaps + '</div></div>';
 }
+ACT.install = () => install();
 ACT.signIn = () => window.dispatchEvent(new CustomEvent('triaj:signin'));
 ACT.dismissWelcome = () => { welcome = false; st.cfg.welcomed = true; save(); render(); };
 
@@ -971,6 +973,28 @@ function timerCard(big) {
     dots + dmsg + btns +
     (task && !task.done && !brk && !idle ? '<button class="btn ghost" style="margin-top:8px"' + C('complete', task.id) + '>✓ Mark task done</button>' : '') + '</div>';
 }
+/* --- blocking distracting sites during focus (done by the companion) --- */
+const BLOCK_SUGGEST = ['youtube.com', 'instagram.com', 'tiktok.com', 'reddit.com', 'x.com', 'facebook.com', 'netflix.com', 'twitch.tv', 'discord.com'];
+function blockCfg() { return Object.assign({ on: false, sites: BLOCK_SUGGEST.slice(0, 5) }, st.cfg.focusBlock || {}); }
+function blockCard() {
+  const b = blockCfg(), has = bridge.available();
+  const chk = '<div class="check"><input type="checkbox" id="fb_on"' + (b.on ? ' checked' : '') + (has ? '' : ' disabled') + CH('fbOn') + '><label for="fb_on">Block these sites while a focus round runs</label></div>';
+  const list = '<textarea id="fb_sites" rows="4" spellcheck="false" placeholder="youtube.com"' + CH('fbSites') + '>' + esc(b.sites.join('\n')) + '</textarea>';
+  const add = BLOCK_SUGGEST.filter((x) => b.sites.indexOf(x) < 0).map((x) => '<button class="pill"' + C('fbAdd', x) + '>+ ' + esc(x) + '</button>').join('');
+  return '<div class="card"><h3>Block distractions</h3>' +
+    (has ? '<div class="s" style="margin-bottom:8px">During focus, these open a short "back to focus" page instead. Breaks are free. One site per line.</div>'
+      : '<div class="stbox warn" style="margin:0 0 10px"><b>Needs the Triaj companion</b><div class="s">Blocking is done by the browser extension on your computer. ' + (isPhone() ? 'Phones can\'t run it.' : '<a class="lnk" href="../#companion" target="_blank" rel="noopener">Add the companion</a>, then reload.') + '</div></div>') +
+    chk + list + (add ? '<div class="conf-row" style="margin-bottom:10px">' + add + '</div>' : '') +
+    (has ? '<button class="btn sm sec"' + C('fbPerm') + '>Show a friendly page instead of an error</button><div class="s" style="margin-top:6px">Optional. Lets the companion swap blocked tabs for a page with your timer.</div>' : '') + '</div>';
+}
+function fbSave(o) { st.cfg.focusBlock = Object.assign(blockCfg(), o); save(); }
+ACT.fbOn = () => { fbSave({ on: EL.checked }); toast(EL.checked ? 'Blocking during focus is on' : 'Blocking is off'); };
+ACT.fbSites = () => { fbSave({ sites: EL.value.split(/[\s,]+/).map((x) => x.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').replace(/^www\./, '').replace(/[/:?#].*$/, '')).filter((x) => x.indexOf('.') > 0) }); };
+ACT.fbAdd = (x) => { const b = blockCfg(); if (b.sites.indexOf(x) < 0) b.sites.push(x); fbSave({ sites: b.sites }); render(); };
+ACT.fbPerm = async () => { await new Promise((r) => setTimeout(r, 1200)); const r = await send({ cmd: 'blockPerm' }); toast(r && r.ok ? 'Done. Blocked sites now show your timer' : 'Not allowed. Blocked sites will show the browser\'s error page'); };
+bridge.on('setBlock', (d) => { if (d) { fbSave({ on: !!d.on }); render(); } });
+bridge.on('go', (d) => { if (d && d.hash) ACT.go(d.hash); });
+
 function viewFocus() {
   const t = T(), open = sorted(st.tasks.filter((x) => !x.done && !x.inClass));
   if (!focusTid && open[0]) { const ok = open.filter(workable); focusTid = (ok.length ? ok : open).slice().sort((a, b) => score(b) - score(a))[0].id; }
@@ -992,7 +1016,7 @@ function viewFocus() {
     '<span class="lbl">Noise volume</span><input type="range" min="0.02" max="0.8" step="0.02" value="' + t.ambientVol + '"' + CH('tSet', 'ambientVol') + '>' +
     chk('autoBreak', 'Start breaks automatically') + chk('autoWork', 'Start the next focus round automatically after a break') + chk('notify', 'Desktop notifications') + chk('badge', 'Show minutes left on the toolbar icon') +
     '<div class="s" style="margin-top:6px">The timer keeps running when this tab is closed. Shortcut: <code>Alt+Shift+F</code> starts or pauses it.</div></div>';
-  return '<div class="cols"><div>' + timerCard(true) + '<div class="card">' + presets + taskSel + quick + '</div>' + editor + '</div><div>' + statsCard(true) + sounds + '</div></div>';
+  return '<div class="cols"><div>' + timerCard(true) + '<div class="card">' + presets + taskSel + quick + '</div>' + editor + '</div><div>' + statsCard(true) + blockCard() + sounds + '</div></div>';
 }
 function statsCard(full) {
   const by = focusTotals(), td = by[todayS] || { m: 0, x: 0, n: 0 };
@@ -1103,7 +1127,8 @@ function viewClasses() {
 function viewMore() {
   const cvs = st.canvas.host ? (st.canvas.lastStatus && st.canvas.lastStatus.kind === 'err' ? '⚠ needs attention' : 'synced ' + ago(st.canvas.lastSync)) : 'not connected';
   const items = [['ai', '✨', 'AI setup', aiReady() ? aiName() + ' connected.' : 'Get started with AI: free with a Gemini key, about 3 minutes.'], ['backup', '🛟', 'Backups', bk.perm ? 'Daily backup file ' + (bk.state && bk.state.lastAt ? 'saved ' + ago(bk.state.lastAt) : 'on') + '. Restore or undo.' : 'Off: turn on so updates can never wipe your data.'], ['export', '📋', 'Export for AI', 'Copy all tasks, schedule and classes as short text for any AI.'], ['files', '📚', 'Files', 'Download course files and project resources into folders.'], ['sync', '🔄', 'Sync', 'Canvas (' + cvs + ') and calendar feeds.'], ['import', '📥', 'Import', 'One-off: .ics files, syllabus or outline text.'], ['classes', '🎓', 'Classes', 'Class meeting times and colors.'], ['budget', '💰', 'Budget', 'Income, spending and categories.'], ['settings', '🎨', 'Settings', 'Theme, pace, daily limits, routine, reminders.']];
-  return items.map((i) => '<div class="card" style="display:flex;gap:12px;align-items:center;cursor:pointer"' + C('go', i[0]) + '><div style="font-size:26px">' + i[1] + '</div><div><b>' + i[2] + '</b><div class="s">' + esc(i[3]) + '</div></div></div>').join('');
+  const inst = installable() ? '<button class="mrow inst"' + C('install') + '><b>Install Triaj</b><span class="s">Open it from your home screen or dock like an app.</span></button>' : '';
+  return '<div class="mlist">' + inst + items.map((i) => '<button class="mrow"' + C('go', i[0]) + '><b>' + i[2] + '</b><span class="s">' + esc(i[3]) + '</span></button>').join('') + '</div>';
 }
 
 
@@ -1608,7 +1633,7 @@ function daysLabel(d) {
 }
 function viewSettings() {
   const c = st.cfg;
-  const theme = '<div class="card"><h3>Theme color</h3><div style="display:flex;gap:10px;flex-wrap:wrap">' + Object.keys(THEMES).map((k) => '<button class="sw' + ((c.theme || 'purple') === k ? ' on' : '') + '" style="background:linear-gradient(135deg,' + THEMES[k].light + ' 50%,' + THEMES[k].dark + ' 50%)" title="' + THEMES[k].name + '"' + C('setTheme', k) + '></button>').join('') + '</div>' +
+  const theme = '<div class="card"><h3>Theme color</h3><div style="display:flex;gap:10px;flex-wrap:wrap">' + Object.keys(THEMES).map((k) => '<button class="sw' + ((c.theme || 'ink') === k ? ' on' : '') + '" style="background:linear-gradient(135deg,' + THEMES[k].light + ' 50%,' + THEMES[k].dark + ' 50%)" title="' + THEMES[k].name + '"' + C('setTheme', k) + '></button>').join('') + '</div>' +
     '<h3 style="margin-top:14px">Mode</h3><div class="seg" style="margin:0">' + Object.keys(MODES).map((k) => [k, MODES[k]]).map((m) => '<button class="' + ((c.mode || 'auto') === m[0] ? 'on' : '') + '"' + C('setMode', m[0]) + '>' + m[1] + '</button>').join('') + '</div></div>';
   const feel = '<div class="card"><h3>Feel & reminders</h3>' +
     '<div class="check"><input type="checkbox" id="fx1"' + (c.fx !== false ? ' checked' : '') + CH('setFlag', 'fx') + '><label for="fx1">Celebrations (confetti)</label></div>' +
@@ -2009,11 +2034,11 @@ function renderSyncLabel() {
 function render() {
   if (!ready) return;
   todayS = iso(new Date());
-  document.querySelectorAll('nav button').forEach((b) => { const t = b.dataset.t; b.className = (t === tab || (t === 'more' && SUB.indexOf(tab) > -1)) ? 'on' : ''; });
+  document.querySelectorAll('nav button').forEach((b) => { const t = b.dataset.t; b.classList.toggle('on', t === tab || (t === 'more' && SUB.indexOf(tab) > -1)); });
   const V = { backup: viewBackup, files: viewFiles, now: viewNow, sched: viewSched, tasks: viewTasks, focus: viewFocus, ai: viewAI, more: viewMore, budget: viewBudget, classes: viewClasses, settings: viewSettings, sync: viewSync, import: viewImport, export: viewExport };
-  const back = SUB.indexOf(tab) > -1 ? '<button class="pill" style="margin-bottom:10px"' + C('go', 'more') + '>‹ More</button>' : '';
+  const back = SUB.indexOf(tab) > -1 ? '<button class="backbtn"' + C('go', 'more') + '>More</button>' : '';
   const vw = $('view'), y = window.scrollY;
-  vw.innerHTML = back + (V[tab] || viewNow)() + '<footer>Triaj · ' + (session.user ? 'synced to your account' : 'saved in this browser') + ' · <a class="lnk" href="#"' + C('go', 'sync') + '>sync settings</a></footer>';
+  vw.innerHTML = (back + (V[tab] || viewNow)()).replace(/(<h3[^>]*>)(?:[\p{Extended_Pictographic}\u2190-\u21FF\u2600-\u27BF][\uFE0F\u200D]?)+\s*/gu, '$1') + '<footer>Triaj · ' + (session.user ? 'synced to your account' : 'saved in this browser') + ' · <a class="lnk" href="#"' + C('go', 'sync') + '>sync settings</a></footer>';
   if (tab !== lastTab) { vw.classList.remove('fade'); void vw.offsetWidth; vw.classList.add('fade'); } else window.scrollTo(0, y);
   lastTab = tab;
   renderMini(); renderSyncLabel();
@@ -2037,13 +2062,6 @@ function burst() {
     document.body.appendChild(p); setTimeout(() => p.remove(), 900);
   }
 }
-document.addEventListener('pointerdown', (e) => {
-  const b = e.target.closest && e.target.closest('.btn,.pill,nav button,.day,.seg button,.chk');
-  if (!b || b.disabled) return;
-  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2, sp = document.createElement('span');
-  sp.className = 'rip'; sp.style.cssText = 'width:' + d + 'px;height:' + d + 'px;left:' + (e.clientX - r.left - d / 2) + 'px;top:' + (e.clientY - r.top - d / 2) + 'px';
-  b.appendChild(sp); setTimeout(() => sp.remove(), 600);
-});
 let rsT = null;
 window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (!typing() && (tab === 'sched' || tab === 'now')) render(); }, 250); });
 

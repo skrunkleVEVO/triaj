@@ -1,195 +1,83 @@
 // Runs what the extension's background worker used to do, inside the page: Canvas + calendar sync on
-// a schedule, the focus timer, sounds, notifications, the app badge and the daily heads-up.
+// a schedule, sounds, notifications, the app badge and the daily heads-up. The focus timer runs here
+// too, unless the Triaj companion is installed: then the companion runs it (so it keeps going with
+// Triaj closed, counts down on the toolbar and blocks distracting sites) and this page mirrors it.
 // Alarms are fired by one tab at a time (see platform.js), so several open tabs never double up.
 import {
   loadPlan, updatePlan, todayIso, iso, scanCanvasCore, filterCanvas, canvasEvents, mergeItems, releaseHeld,
-  statsText, parseICS, expandEvents, icsToItems, originOf, need, matchClass, sweepBlocks, makeBackup, snapshot, sweepInClass
+  statsText, parseICS, expandEvents, icsToItems, originOf, need, matchClass, sweepBlocks, makeBackup, snapshot, sweepInClass,
+  isBlocked, themeVars
 } from './shared.js';
 import { downloadAll } from './canvasfiles.js';
 import { playSound, startAmbient, stopAmbient } from './sounds.js';
 import { ext, APP_VERSION, isLeader } from './platform.js';
+import { createTimer, leftSec, TIMER_ALARMS } from './timer-core.js';
 import * as bridge from './bridge.js';
-
-const TIMER_IDLE = { phase: 'work', status: 'idle', round: 0, tid: 0, presetId: '', endAt: 0, left: 0, total: 0 };
-const LABEL = { work: 'Focus', short: 'Short break', long: 'Long break' };
-
-/* ================= helpers ================= */
-async function getTimer() { const d = await ext.storage.local.get('timer'); return Object.assign({}, TIMER_IDLE, d.timer || {}); }
-async function setTimer(t) { await ext.storage.local.set({ timer: t }); await updateBadge(t); return t; }
-function presetOf(st, id) { const T = st.cfg.timer; return T.presets.find((p) => p.id === (id || T.presetId)) || T.presets[0]; }
-function phaseMin(p, ph) { return ph === 'work' ? p.work : ph === 'short' ? p.short : p.long; }
-function leftSec(t) { return t.status === 'running' ? Math.max(0, Math.round((t.endAt - Date.now()) / 1000)) : t.left; }
 
 function openPlanner(hash) {
   try { window.focus(); } catch (e) {}
   if (hash && location.hash.slice(1) !== hash) location.hash = hash;
 }
 
-/* ================= audio ================= */
-async function play(sound, st) {
-  st = st || await loadPlan();
-  if (st.cfg.sound === false || !sound || sound === 'none') return;
-  try { playSound(sound, st.cfg.timer.volume); } catch (e) {}
-}
-async function ambientOn(st) {
-  const T = st.cfg.timer;
-  if (st.cfg.sound === false || !T.ambient || T.ambient === 'none') return stopAmbient();
-  try { startAmbient(T.ambient, T.ambientVol); } catch (e) {}
-}
-function ambientOff() { try { stopAmbient(); } catch (e) {} }
-
-/* ================= badge ================= */
+/* ================= focus timer ================= */
+async function getTimer() { return (await ext.storage.local.get('timer')).timer; }
 async function updateBadge(t) {
-  t = t || await getTimer();
+  t = t || await getTimer() || {};
   const st = await loadPlan();
   await ext.action.setBadge(st.cfg.timer.badge !== false && t.status === 'running' ? Math.ceil(leftSec(t) / 60) : 0);
 }
-
-/* ================= focus timer ================= */
-async function scheduleTimerAlarms(t, st) {
-  await Promise.all(['timer-end', 'refocus', 'badge'].map((n) => ext.alarms.clear(n)));
-  if (t.status !== 'running') return;
-  ext.alarms.create('timer-end', { when: t.endAt });
-  ext.alarms.create('badge', { delayInMinutes: 0.5, periodInMinutes: 0.5 });
-  const rf = +st.cfg.timer.refocus || 0;
-  if (t.phase === 'work' && rf > 0 && rf * 60 < leftSec(t) - 30) ext.alarms.create('refocus', { delayInMinutes: rf, periodInMinutes: rf });
-}
-
-async function startPhase(phase, o) {
-  o = o || {};
-  const st = await loadPlan(), cur = await getTimer();
-  const p = presetOf(st, o.presetId || cur.presetId);
-  const mins = +o.minutes > 0 ? +o.minutes : phaseMin(p, phase);
-  const t = Object.assign({}, cur, {
-    phase, status: 'running', presetId: p.id, total: Math.round(mins * 60), endAt: Date.now() + mins * 60000, left: 0,
-    startedAt: Date.now(), custom: +o.minutes > 0, distractions: phase === 'work' ? 0 : (cur.distractions || 0)
-  });
-  if (o.tid !== undefined) t.tid = +o.tid || 0;
-  if (o.resetRound || o.presetId && o.presetId !== cur.presetId) t.round = 0;
-  await setTimer(t);
-  await scheduleTimerAlarms(t, st);
-  if (phase === 'work') await ambientOn(st); else ambientOff();
-  ext.notifications.clear('timer');
-  return t;
-}
-
-async function logFocus(tid, mins) {
+const local = createTimer({
+  getTimer,
+  async saveTimer(t, badgeOnly) { if (!badgeOnly) await ext.storage.local.set({ timer: t }); await updateBadge(t); },
+  async plan() { const st = await loadPlan(); return { timer: st.cfg.timer, sound: st.cfg.sound !== false, tasks: st.tasks }; },
+  logFocus: (e) => applyFocus([e]),
+  alarms: ext.alarms,
+  notify: (id, o) => ext.notifications.create(id, o),
+  clearNotify: (id) => ext.notifications.clear(id),
+  askNotify: () => ext.notifications.ask(),
+  play: (s, v) => { try { playSound(s, v); } catch (e) {} },
+  ambient: (k, v) => { try { startAmbient(k, v); } catch (e) {} },
+  ambientOff: () => { try { stopAmbient(); } catch (e) {} }
+});
+// Focus minutes and distractions, from this page's timer or queued up by the companion's.
+async function applyFocus(list) {
+  if (!list || !list.length) return;
   await updatePlan((st) => {
-    st.focus.push({ d: todayIso(), m: mins, tid: tid || 0, at: Date.now() });
-    if (tid) st.tasks.forEach((x) => { if (x.id === tid) x.spent = (x.spent || 0) + mins; });
+    list.forEach((e) => {
+      st.focus.push(e);
+      if (e.m && e.tid) st.tasks.forEach((x) => { if (x.id === e.tid) x.spent = (x.spent || 0) + e.m; });
+    });
   });
 }
-
-async function completePhase(natural, forceStart) {
-  const t = await getTimer();
-  if (t.status !== 'running' && t.status !== 'paused') return t;
-  if (natural && t.status === 'running' && Date.now() < t.endAt - 1500) return t; // alarm fired early, ignore
-  const st = await loadPlan(), T = st.cfg.timer, p = presetOf(st, t.presetId);
-  const elapsed = natural ? t.total : t.total - leftSec(t);
-  await Promise.all(['timer-end', 'refocus', 'badge'].map((n) => ext.alarms.clear(n)));
-  let mins = 0, next;
-  if (t.phase === 'work') {
-    mins = Math.round(elapsed / 60);
-    if (mins >= 1) await logFocus(t.tid, mins);
-    t.round = (t.round || 0) + 1;
-    next = t.round % Math.max(1, p.rounds) === 0 ? 'long' : 'short';
-  } else next = 'work';
-  t.lastDone = { phase: t.phase, mins, at: Date.now() };
-  ambientOff();
-  if (natural) await play(t.phase === 'work' ? T.endSound : T.breakSound, st);
-
-  const auto = forceStart || (next === 'work' ? T.autoWork : T.autoBreak);
-  const nm = phaseMin(p, next);
-  Object.assign(t, { phase: next, status: 'ready', total: nm * 60, left: nm * 60, endAt: 0 });
-  await setTimer(t);
-  if (auto) await startPhase(next);
-
-  if (natural && T.notify !== false) {
-    const task = st.tasks.find((x) => x.id === t.tid);
-    const title = t.lastDone.phase === 'work' ? 'Focus done: +' + mins + ' min 🎉' : 'Break is over ☕';
-    const msg = t.lastDone.phase === 'work'
-      ? (auto ? 'Your ' + nm + ' min ' + LABEL[next].toLowerCase() + ' has started. Stand up, stretch, drink water.' : 'Time for a ' + nm + ' min ' + LABEL[next].toLowerCase() + '.')
-      : (auto ? 'Next focus round started' + (task ? ': ' + task.t : '.') : 'Ready for the next round' + (task ? ' on ' + task.t : '') + '?');
-    const buttons = auto ? [{ title: next === 'work' ? 'Pause' : 'Skip break' }, { title: 'Stop' }] : [{ title: 'Start ' + LABEL[next].toLowerCase() }, { title: 'Stop for now' }];
-    ext.notifications.create('timer', { title, message: msg, buttons, priority: 2 });
-  }
-  return getTimer();
-}
-
+async function takeFocus() { const r = await bridge.call('focus.take'); if (r && r.list) await applyFocus(r.list); }
+// With the companion, the timer lives there; this page shows its state.
 async function timerOp(m) {
-  const t = await getTimer();
-  switch (m.op) {
-    case 'start':
-      ext.notifications.ask();
-      return startPhase(m.phase || (t.status === 'ready' ? t.phase : 'work'), { tid: m.tid, minutes: m.minutes, presetId: m.presetId, resetRound: m.resetRound });
-    case 'pause':
-      if (t.status !== 'running') return t;
-      t.left = leftSec(t); t.status = 'paused';
-      await setTimer(t); await scheduleTimerAlarms(t, await loadPlan()); ambientOff();
-      return t;
-    case 'resume': {
-      if (t.status !== 'paused') return t;
-      const st = await loadPlan();
-      t.endAt = Date.now() + t.left * 1000; t.status = 'running';
-      await setTimer(t); await scheduleTimerAlarms(t, st);
-      if (t.phase === 'work') await ambientOn(st);
-      return t;
-    }
-    case 'toggle':
-      if (t.status === 'running') return timerOp({ op: 'pause' });
-      if (t.status === 'paused') return timerOp({ op: 'resume' });
-      return timerOp({ op: 'start' });
-    case 'stop': {
-      if ((t.status === 'running' || t.status === 'paused') && t.phase === 'work') {
-        const mins = Math.round((t.total - leftSec(t)) / 60);
-        if (mins >= 1) await logFocus(t.tid, mins);
-      }
-      await Promise.all(['timer-end', 'refocus', 'badge'].map((n) => ext.alarms.clear(n)));
-      ambientOff();
-      ext.notifications.clear('timer');
-      return setTimer(Object.assign({}, TIMER_IDLE, { tid: t.tid, presetId: t.presetId, round: m.resetRound ? 0 : t.round }));
-    }
-    case 'skip':
-      return completePhase(false, true);
-    case 'tick':
-      if (t.status === 'running' && Date.now() >= t.endAt) return completePhase(true);
-      return t;
-    case 'add': {
-      if (t.status !== 'running' && t.status !== 'paused') return t;
-      const s = (+m.minutes || 5) * 60;
-      t.total += s;
-      if (t.status === 'running') t.endAt += s * 1000; else t.left += s;
-      await setTimer(t); await scheduleTimerAlarms(t, await loadPlan());
-      return t;
-    }
-    case 'task':
-      t.tid = +m.tid || 0; return setTimer(t);
-    case 'distracted':
-      t.distractions = (t.distractions || 0) + 1;
-      await updatePlan((st) => { st.focus.push({ d: todayIso(), x: 1, tid: t.tid || 0, at: Date.now() }); });
-      await setTimer(t);
-      return t;
-    case 'ambient': {
-      const st = await loadPlan();
-      if (t.status === 'running' && t.phase === 'work') await ambientOn(st); else ambientOff();
-      return t;
-    }
+  if (bridge.available()) {
+    const r = await bridge.call('timer', m);
+    if (r && r.status) { await ext.storage.local.set({ timer: r }); return r; }
   }
-  return t;
+  return local.op(m);
 }
+bridge.on('timer', (t) => { if (t && t.status) ext.storage.local.set({ timer: t }); });
+bridge.on('focus', () => { takeFocus(); });
 
-async function refocusNudge() {
-  const t = await getTimer();
-  if (t.status !== 'running' || t.phase !== 'work') return;
-  const st = await loadPlan(), T = st.cfg.timer;
-  await play(T.refocusSound || 'nudge', st);
-  if (T.refocusNotify) {
-    const task = st.tasks.find((x) => x.id === t.tid);
-    ext.notifications.create('refocus', { silent: true,
-      title: 'Still with it? 👀', message: (task ? task.t + ' · ' : '') + Math.ceil(leftSec(t) / 60) + ' min left in this round.' });
-    setTimeout(() => ext.notifications.clear('refocus'), 8000);
-  }
+// What the companion's popup and site blocker need, sent whenever the planner changes.
+let mirrorT = null;
+async function sendMirror() {
+  if (!bridge.available()) return;
+  const st = await loadPlan(), today = todayIso();
+  const open = st.tasks.filter((t) => !t.done).slice(0, 300).map((t) => ({ id: t.id, t: t.t, d: t.d || '', p: t.p, inClass: !!t.inClass, est: t.est, fixed: t.fixed, spent: t.spent || 0, blocked: isBlocked(st, t) }));
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  bridge.call('mirror', {
+    timer: st.cfg.timer, sound: st.cfg.sound !== false, goal: st.cfg.goal || 90, pace: st.cfg.pace, focusBlock: st.cfg.focusBlock || null,
+    tasks: open, focusToday: st.focus.filter((e) => e.d === today).reduce((a, e) => a + (e.m || 0), 0),
+    canvas: { host: st.canvas.host || '', lastSync: st.canvas.lastSync || '', lastStatus: st.canvas.lastStatus ? { kind: st.canvas.lastStatus.kind, text: st.canvas.lastStatus.text } : null },
+    vars: themeVars(st.cfg.theme, st.cfg.mode, dark), site: location.origin + location.pathname, at: Date.now()
+  });
 }
+ext.storage.onChanged.addListener((ch) => { if (ch.plan) { clearTimeout(mirrorT); mirrorT = setTimeout(sendMirror, 800); } });
+bridge.on('syncNow', () => { syncAll(true); });
+bridge.on('preset', async (d) => { if (d && d.id) await updatePlan((st) => { st.cfg.timer.presetId = d.id; }); });
 
 /* ================= Canvas + calendar sync ================= */
 const NOEXT = 'Canvas sync runs through the Triaj companion extension, and this browser doesn\'t have it. ' +
@@ -430,13 +318,8 @@ async function unblockSweep() {
 }
 
 ext.alarms.onAlarm.addListener(async (a) => {
-  if (a.name === 'timer-end') await completePhase(true);
-  else if (a.name === 'refocus') await refocusNudge();
-  else if (a.name === 'badge') {
-    const t = await getTimer();
-    if (t.status === 'running' && Date.now() >= t.endAt) await completePhase(true); else await updateBadge(t);
-  }
-  else if (a.name === 'sync') { await syncAll(false); await unblockSweep(); }
+  if (await local.onAlarm(a.name)) return;
+  if (a.name === 'sync') { await syncAll(false); await unblockSweep(); }
   else if (a.name === 'backup') await backupCheck();
   else if (a.name === 'digest') await digest();
   else if (a.name === 'midnight') { await updatePlan((st) => { releaseHeld(st); }); await unblockSweep(); }
@@ -444,16 +327,11 @@ ext.alarms.onAlarm.addListener(async (a) => {
 
 ext.notifications.onButtonClicked.addListener(async (id, idx) => {
   ext.notifications.clear(id);
-  if (id !== 'timer') return;
-  const t = await getTimer();
-  if (idx === 1) return timerOp({ op: 'stop' });
-  if (t.status === 'ready') return timerOp({ op: 'start' });
-  if (t.status === 'running' && t.phase === 'work') return timerOp({ op: 'pause' });
-  if (t.status === 'running') return timerOp({ op: 'skip' });
+  if (id === 'timer') return local.onButton(idx);
 });
 ext.notifications.onClicked.addListener((id) => { ext.notifications.clear(id); openPlanner(id === 'sync' || id === 'unblocked' ? 'tasks' : id === 'timer' || id === 'refocus' ? 'focus' : 'now'); });
 
-// Same shortcut the extension had, while Triaj is the focused tab.
+// Same shortcut as the companion's, while Triaj is the focused tab.
 document.addEventListener('keydown', (e) => {
   if (e.altKey && e.shiftKey && e.code === 'KeyF') { e.preventDefault(); timerOp({ op: 'toggle' }); }
 });
@@ -488,6 +366,7 @@ async function handle(m) {
   }
   if (m.cmd === 'open') { openPlanner(m.hash); return true; }
   if (m.cmd === 'preview') { playSound(m.sound, m.volume); return true; }
+  if (m.cmd === 'blockPerm') return bridge.call('block.perm', {}, 15 * 60000);
   return null;
 }
 ext.runtime.setHandler((m) => handle(m).catch((e) => ({ kind: 'err', text: String(e && e.message || e) })));
@@ -506,5 +385,11 @@ export async function start() {
     const st = await loadPlan();
     bridge.call('config', { canvasHost: st.canvas.host || '', site: location.origin + location.pathname });
     takeScan();
+    // The companion runs the timer now: hand over, and pick up focus time it logged while Triaj was closed.
+    await Promise.all(TIMER_ALARMS.map((n) => ext.alarms.clear(n)));
+    const t = await bridge.call('timer', { op: 'get' });
+    if (t && t.status) await ext.storage.local.set({ timer: t });
+    await sendMirror();
+    await takeFocus();
   }
 }

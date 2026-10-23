@@ -30,7 +30,7 @@ export const TIMER_DEFAULTS = {
 
 export const CFG_DEFAULTS = {
   ds: '08:00', de: '22:00', pace: 1.5, cap: 5, goal: 90, prep: 30, buf: 10, ahead: 7,
-  theme: 'purple', mode: 'auto', fx: true, sound: true,
+  theme: 'ink', mode: 'auto', fx: true, sound: true,
   digest: true, digestTime: '08:00',
   aiKey: '', aiModel: 'claude-haiku-5-5', aiProvider: '', geminiKey: '', geminiModel: ''
 };
@@ -67,6 +67,8 @@ export function normalize(o) {
   st.conflicts.forEach((c) => { c.uid = mig(c.uid); });
   st.dismissed = st.dismissed.map(mig);
   if (!st.canvas.sylDone || typeof st.canvas.sylDone !== 'object') st.canvas.sylDone = {};
+  // Triaj 3: Ink replaces purple as the default look (only for people who never picked a color).
+  if (!st.cfg.themeV) { if (st.cfg.theme === 'purple' && !st.cfg.themePicked) st.cfg.theme = 'ink'; st.cfg.themeV = 3; }
   return st;
 }
 
@@ -458,6 +460,7 @@ export async function snapshot(reason, force) {
 // Every color theme gets its own light, dark and black palette. All text/background pairs are
 // checked for contrast in tools (see README); --on-pri is whichever of white/near-black reads best.
 export const THEMES = {
+  ink: { name: 'Ink', h: 226, s: 58, light: '#1d2f6f', dark: '#9db4ff' },
   purple: { name: 'Purple', h: 262, s: 70, light: '#6d28d9', dark: '#a78bfa' },
   blue: { name: 'Blue', h: 217, s: 80, light: '#1d4ed8', dark: '#60a5fa' },
   teal: { name: 'Teal', h: 173, s: 70, light: '#0f766e', dark: '#2dd4bf' },
@@ -500,20 +503,23 @@ export function resolveMode(mode, systemDark) {
   return mode === 'light' || mode === 'dark' || mode === 'black' ? mode : (systemDark ? 'dark' : 'light');
 }
 export function themeVars(theme, mode, systemDark) {
-  const T = THEMES[theme] || THEMES.purple, m = resolveMode(mode, systemDark), h = T.h, s = T.s, t = s / 100;
+  const T = THEMES[theme] || THEMES.ink, m = resolveMode(mode, systemDark), h = T.h, s = T.s, t = s / 100;
   let v;
   if (m === 'light') {
     v = { bg: hslHex(h, 60 * t, 97.5), card: '#ffffff', ink: '#1c1c22', mute: hslHex(h, 10 * t, 38), line: hslHex(h, 40 * t, 88),
       soft: hslHex(h, 75 * t, 94.5), pri: T.light, g1: T.light, g2: hslHex(h, s, 24),
-      bad: '#b42318', ok: '#15803d', warn: '#8a5a00', warnbg: '#fcefc7', field: hslHex(h, 60 * t, 98.5), shadow: 'rgba(15,15,30,.08)' };
+      bad: '#b42318', ok: '#15803d', warn: '#8a5a00', warnbg: '#fcefc7', field: '#ffffff', shadow: 'rgba(15,15,30,.08)',
+      hdr: hslHex(h, s * 0.7, 17), now: '#c62f34', soon: '#9a6a00', later: '#127a66', grid: hslHex(h, 50 * t, 93) };
   } else if (m === 'dark') {
     v = { bg: hslHex(h, 30 * t, 8), card: hslHex(h, 24 * t, 12.5), ink: '#ececf1', mute: hslHex(h, 14 * t, 70), line: hslHex(h, 20 * t, 24),
       soft: hslHex(h, 32 * t, 19), pri: T.dark, g1: hslHex(h, 60 * t, 30), g2: hslHex(h, 50 * t, 15),
-      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#3a2e0b', field: hslHex(h, 26 * t, 10), shadow: 'rgba(0,0,0,.35)' };
+      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#3a2e0b', field: hslHex(h, 26 * t, 10), shadow: 'rgba(0,0,0,.35)',
+      hdr: hslHex(h, 34 * t, 10.5), now: '#ff7a7e', soon: '#f5c04a', later: '#4fd1b5', grid: hslHex(h, 24 * t, 10.5) };
   } else {
     v = { bg: '#000000', card: '#0d0d10', ink: '#ededf0', mute: '#a1a1aa', line: '#26262c',
       soft: hslHex(h, 40 * t, 11), pri: T.dark, g1: hslHex(h, 55 * t, 20), g2: '#000000',
-      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#2b2206', field: '#060608', shadow: 'rgba(0,0,0,.6)' };
+      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#2b2206', field: '#060608', shadow: 'rgba(0,0,0,.6)',
+      hdr: '#000000', now: '#ff7a7e', soon: '#f5c04a', later: '#4fd1b5', grid: '#0a0a0d' };
   }
   v.onpri = onColor(v.pri);
   v.onok = onColor(v.ok);

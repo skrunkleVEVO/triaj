@@ -8,7 +8,7 @@
 //   notifications  system notifications through the service worker (with action buttons where supported)
 import * as bridge from './bridge.js';
 
-export const APP_VERSION = '3.0.0';
+export const APP_VERSION = '3.1.0';
 export const ICON = new URL('../assets/icon-192.png', location.href).href;
 export const CLOUD_KEYS = ['plan', 'dlog'];
 const TAB = 'tab:' + Math.random().toString(36).slice(2);
