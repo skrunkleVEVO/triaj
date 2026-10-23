@@ -1,0 +1,4 @@
+node_modules/
+web/triaj-companion.zip
+*.log
+.firebase/

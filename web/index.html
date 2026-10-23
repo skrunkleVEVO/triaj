@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triaj · Your semester, triaged</title>
+<meta name="description" content="Triaj is a student planner that pulls in everything from Canvas, plans your study time around your classes, and keeps you focused. Free, on phone and desktop.">
+<meta name="theme-color" content="#140f22">
+<meta property="og:title" content="Triaj · Your semester, triaged">
+<meta property="og:description" content="Canvas sync, a study plan that builds itself, a focus timer and AI help. Free, on phone and desktop.">
+<meta property="og:image" content="https://skrunklevevo.github.io/triaj/assets/og.png">
+<meta property="og:url" content="https://skrunklevevo.github.io/triaj/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="landing.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Triaj</a>
+  <nav class="links"><a href="#features">Features</a><a href="#how">How it works</a><a href="#companion">Companion</a><a href="https://github.com/skrunkleVEVO/triaj" target="_blank" rel="noopener">GitHub</a></nav>
+  <a class="btn small" href="app/">Open app</a>
+</header>
+
+<main>
+<section class="hero">
+  <div class="copy">
+    <p class="eyebrow">For students on Canvas</p>
+    <h1>Your semester,<br><span class="hl">triaged.</span></h1>
+    <p class="lede">Triaj pulls in every assignment, quiz and exam from Canvas, plans when you'll actually work on each one around your classes, and keeps you on task with a focus timer. Open it on your laptop, your phone, or any browser. It's the same planner everywhere.</p>
+    <div class="ctas">
+      <a class="btn" href="app/">Open Triaj, it's free</a>
+      <a class="btn ghost" href="#companion">Get the Canvas companion</a>
+    </div>
+    <ul class="ticks"><li>Sign in with Google or email</li><li>Installs on your phone like an app</li><li>Works offline</li></ul>
+  </div>
+  <div class="shots" aria-hidden="true">
+    <div class="frame desk"><div class="bar"><i></i><i></i><i></i><span>skrunklevevo.github.io/triaj/app</span></div><img src="assets/shot-desktop.png" alt="" loading="eager" width="1280" height="800"></div>
+    <div class="frame phone"><img src="assets/shot-phone.png" alt="" loading="eager" width="390" height="844"></div>
+  </div>
+</section>
+
+<section id="features" class="features">
+  <h2>Everything due, sorted into a plan you can follow.</h2>
+  <div class="grid">
+    <article><b class="ic">🔄</b><h3>Canvas, synced</h3><p>Assignments, quizzes (even locked ones), discussions, peer reviews, to-do notes and exam dates. New items arrive on their own, changed due dates update, and anything you submit gets checked off.</p></article>
+    <article><b class="ic">🗓</b><h3>A study plan that builds itself</h3><p>Tell it your class times and how fast you work. Triaj fills the gaps in your week with study blocks, works ahead of deadlines, and tells you the one thing to do next.</p></article>
+    <article><b class="ic">⏱</b><h3>Focus timer</h3><p>Pomodoro, deep work or sprint presets, gentle refocus nudges, brown and pink noise, and focus minutes logged against each task. It keeps running while you work in other tabs.</p></article>
+    <article><b class="ic">✨</b><h3>AI that suggests, you decide</h3><p>Plan your week, add tasks from a sentence, pull exam dates out of a syllabus PDF, or get a tiny first step when you're stuck. Free with a Gemini key. Nothing changes until you press Apply.</p></article>
+    <article><b class="ic">📱</b><h3>One planner, every device</h3><p>Your account keeps everything in sync live. Check what's due on your phone, start a timer on your laptop, and it's all there in any browser you sign in on.</p></article>
+    <article><b class="ic">📚</b><h3>Course files in tidy folders</h3><p>Grab every PDF and slide deck for a course, or just what one assignment needs, straight into Downloads/Canvas/&lt;course&gt;/&lt;module&gt;. It remembers what changed since last time.</p></article>
+  </div>
+  <div class="more"><span>Also:</span> blocked tasks and prerequisites · in-class tests on the right class meeting · calendar feeds (Google, Outlook, work shifts) · budget · 7 color themes in light, dark and black · export your whole plan as AI-ready text</div>
+</section>
+
+<section id="how" class="how">
+  <h2>A website, plus one small helper.</h2>
+  <p class="sub">Browsers don't let a website read other sites (like your Canvas) with your sign-in. That's a good rule, so Triaj splits the work in two.</p>
+  <div class="diagram">
+    <div class="node site"><b>Triaj website</b><span>The whole planner: tasks, schedule, timer, AI, settings. Runs on any device.</span></div>
+    <div class="link"><span>asks</span><i></i><span>answers</span></div>
+    <div class="node comp"><b>Triaj companion</b><span>A tiny browser extension on your computer. It only reads the sites you allow and saves files.</span></div>
+    <div class="link"><span>reads</span><i></i><span>with your sign-in</span></div>
+    <div class="node canvas"><b>Canvas &amp; calendars</b><span>Your school's Canvas and any private iCal feed.</span></div>
+  </div>
+  <div class="cloud"><b>☁ Your account</b> (Firebase) keeps the planner in sync between the website on all your devices. Only you can read it.</div>
+</section>
+
+<section id="companion" class="companion">
+  <h2>Install the companion</h2>
+  <p class="sub">You only need it on a computer, and only for Canvas sync, private calendar feeds and saving course files. Everything else works without it. Phones get Canvas updates through your account.</p>
+  <a class="btn" href="triaj-companion.zip" download>⬇ Download triaj-companion.zip</a>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-b="chromium">Chrome · Edge · Brave · Opera</button>
+    <button role="tab" aria-selected="false" data-b="firefox">Firefox</button>
+  </div>
+  <ol class="steps" data-b="chromium">
+    <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep (for example Documents/triaj-companion).</li>
+    <li>Open your extensions page: <code>chrome://extensions</code>, <code>edge://extensions</code>, <code>brave://extensions</code> or <code>opera://extensions</code>.</li>
+    <li>Turn on <b>Developer mode</b>, press <b>Load unpacked</b> and pick that folder.</li>
+    <li>Open <a href="app/">Triaj</a>, go to More → Sync, enter your Canvas address and press <b>Connect</b>. The companion asks you to allow that one site.</li>
+  </ol>
+  <ol class="steps" data-b="firefox" hidden>
+    <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep.</li>
+    <li>Go to <code>about:debugging#/runtime/this-firefox</code> and press <b>Load Temporary Add-on…</b>, then pick <code>manifest.json</code> in that folder.</li>
+    <li>Open <a href="app/">Triaj</a> → More → Sync → <b>Connect</b>, and allow the site when Firefox asks.</li>
+    <li>Firefox removes temporary add-ons when it closes. To keep it, Firefox Developer Edition or Nightly can install the zip permanently (set <code>xpinstall.signatures.required</code> to false in <code>about:config</code>, then about:addons → ⚙ → Install Add-on From File).</li>
+  </ol>
+  <p class="note">The companion's code is a few hundred lines and is <a href="https://github.com/skrunkleVEVO/triaj/tree/main/extension" target="_blank" rel="noopener">right here on GitHub</a>. It never sees your planner, and it only reaches sites you've allowed.</p>
+</section>
+
+<section class="privacy" id="privacy">
+  <h2>Your data</h2>
+  <div class="cols">
+    <p><b>Stored in your account:</b> your planner (tasks, classes, schedule, settings), plus a Canvas access token or AI keys if you add them. Firestore security rules let only your signed-in account read or write it.</p>
+    <p><b>Never collected:</b> no ads, no analytics, no tracking. Canvas data goes from Canvas to your browser to your account, nowhere else. AI requests go straight from your browser to the provider you choose, with your own key.</p>
+    <p><b>Without an account:</b> choose "Try it without an account" and everything stays in that browser only. Sign in later and it comes along.</p>
+  </div>
+</section>
+
+<section class="final">
+  <img src="assets/logo.svg" alt="" width="64" height="64">
+  <h2>Know what to do next.</h2>
+  <a class="btn" href="app/">Open Triaj</a>
+</section>
+</main>
+
+<footer class="foot">
+  <span>Triaj · made by <a href="https://github.com/skrunkleVEVO" target="_blank" rel="noopener">skrunkleVEVO</a></span>
+  <span><a href="https://github.com/skrunkleVEVO/triaj" target="_blank" rel="noopener">Source</a> · <a href="#privacy">Privacy</a> · <a href="app/">App</a></span>
+</footer>
+<script>
+document.querySelectorAll('.tabs button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+    document.querySelectorAll('.steps').forEach(function (s) { s.hidden = s.dataset.b !== b.dataset.b; });
+  });
+});
+if (/firefox/i.test(navigator.userAgent)) document.querySelector('.tabs [data-b="firefox"]').click();
+</script>
+</body>
+</html>

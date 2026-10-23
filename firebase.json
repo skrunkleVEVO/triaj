@@ -1,0 +1,17 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Triaj",
+        "supportEmail": "typedprogamer10@gmail.com",
+        "authorizedRedirectUris": [
+          "https://triaj-planner-21678.firebaseapp.com/__/auth/handler"
+        ]
+      }
+    }
+  }
+}
