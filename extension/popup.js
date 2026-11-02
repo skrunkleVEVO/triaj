@@ -12,7 +12,7 @@ const iso = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.g
 
 let m = {}, timer = { status: 'idle', phase: 'work' }, pickTid = 0, busy = false, tab = null, tabMsg = null, canvasHost = '';
 const presets = () => (m.timer && m.timer.presets && m.timer.presets.length ? m.timer.presets : PRESETS);
-const presetId = () => timer.presetId || (m.timer && m.timer.presetId) || presets()[0].id;
+const presetId = () => (timer.status === 'idle' && m.timer && m.timer.presetId) || timer.presetId || (m.timer && m.timer.presetId) || presets()[0].id;
 const preset = () => presets().find((p) => p.id === presetId()) || presets()[0];
 const left = () => (timer.status === 'running' ? Math.max(0, Math.round((timer.endAt - Date.now()) / 1000)) : timer.left || 0);
 const open = () => m.tasks || [];

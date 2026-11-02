@@ -53,6 +53,8 @@ async function takeFocus() { const r = await bridge.call('focus.take'); if (r &&
 // With the companion, the timer lives there; this page shows its state.
 async function timerOp(m) {
   if (bridge.available()) {
+    // The companion reads the modes from its mirror: never let it start from a copy that is 800ms stale.
+    if (m.op === 'start') await Promise.race([sendMirror(), new Promise((r) => setTimeout(r, 400))]);
     const r = await bridge.call('timer', m);
     if (r && r.status) { await ext.storage.local.set({ timer: r }); return r; }
   }
@@ -68,7 +70,7 @@ async function sendMirror() {
   const st = await loadPlan(), today = todayIso();
   const open = st.tasks.filter((t) => !t.done).slice(0, 300).map((t) => ({ id: t.id, t: t.t, d: t.d || '', p: t.p, inClass: !!t.inClass, est: t.est, fixed: t.fixed, spent: t.spent || 0, blocked: isBlocked(st, t) }));
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
-  bridge.call('mirror', {
+  await bridge.call('mirror', {
     timer: st.cfg.timer, sound: st.cfg.sound !== false, goal: st.cfg.goal || 90, pace: st.cfg.pace, focusBlock: st.cfg.focusBlock || null,
     tasks: open, focusToday: st.focus.filter((e) => e.d === today).reduce((a, e) => a + (e.m || 0), 0),
     canvas: { host: st.canvas.host || '', lastSync: st.canvas.lastSync || '', lastStatus: st.canvas.lastStatus ? { kind: st.canvas.lastStatus.kind, text: st.canvas.lastStatus.text } : null },

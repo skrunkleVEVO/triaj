@@ -90,8 +90,6 @@ nav button:active{transform:scale(.95)}
 .pill{transition:background .15s,color .15s,border-color .15s}
 .pill:hover{border-color:var(--pri)}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
-.hero{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border:0;box-shadow:0 6px 18px var(--shadow)}
-.hero .s{color:#fff}
 .chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;background:var(--soft);color:var(--ink);margin-right:4px;border:0}
 .chip.bad{background:color-mix(in srgb,var(--bad) 14%,var(--card));color:var(--bad);font-weight:600}
 .chip.warn{background:var(--warnbg);color:var(--warn);font-weight:600}
@@ -124,7 +122,7 @@ button.chip.nodate:hover{border-color:var(--pri);color:var(--pri)}
   nav button span{font-size:15px}
   nav button i{font-size:19px}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
-  .mcols{grid-template-columns:1.7fr 1fr}
+  .mcols{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr)}
   .tgrid{display:grid;grid-template-columns:1.5fr 1fr;grid-template-areas:"a b" "c b";column-gap:20px;align-items:start}
   .day{aspect-ratio:1.5;font-size:16px}
   .wb{font-size:11px}
@@ -157,7 +155,6 @@ a.lnk:hover{text-decoration:underline}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 .btnrow .btn{flex:1;min-width:110px}
 .stbox{background:var(--card);color:var(--ink);border:1px solid var(--line)}
-.hero .stbox{background:var(--card);color:var(--ink)}
 
 /* focus */
 .fwrap{text-align:center}

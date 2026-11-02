@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Triaj Companion",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "The Triaj focus timer on your toolbar, site blocking while you focus, and Canvas sync with your sign-in.",
   "permissions": [
     "storage",

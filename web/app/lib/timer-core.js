@@ -18,7 +18,7 @@ export const PRESETS = [
   { id: 'sprint', name: 'Sprints', work: 15, short: 3, long: 10, rounds: 4 },
   { id: 'gentle', name: 'Gentle start', work: 10, short: 5, long: 15, rounds: 3 }
 ];
-export const TIMER_IDLE = { phase: 'work', status: 'idle', round: 0, tid: 0, presetId: '', endAt: 0, left: 0, total: 0 };
+export const TIMER_IDLE = { phase: 'work', status: 'idle', round: 0, tid: 0, presetId: '', customWork: 0, endAt: 0, left: 0, total: 0 };
 export const LABEL = { work: 'Focus', short: 'Short break', long: 'Long break' };
 export const TIMER_ALARMS = ['timer-end', 'refocus', 'badge'];
 
@@ -34,7 +34,8 @@ export function createTimer(env) {
     if (!Array.isArray(T.presets) || !T.presets.length) T.presets = PRESETS;
     return { T, sound: p.sound !== false, tasks: p.tasks || [] };
   };
-  const presetOf = (T, id) => T.presets.find((p) => p.id === (id || T.presetId)) || T.presets[0];
+  // spec: the mode as it was when the session started, for a mode the settings here don't list (yet, or any more).
+  const presetOf = (T, id, spec) => T.presets.find((p) => p.id === (id || T.presetId)) || (spec && spec.id === id ? spec : null) || T.presets[0];
   const phaseMin = (p, ph) => (ph === 'work' ? p.work : ph === 'short' ? p.short : p.long);
   const clearAlarms = () => Promise.all(TIMER_ALARMS.map((n) => env.alarms.clear(n)));
   const play = (c, s) => { if (c.sound && s && s !== 'none') return env.play(s, c.T.volume); };
@@ -52,14 +53,20 @@ export function createTimer(env) {
   async function startPhase(phase, o) {
     o = o || {};
     const c = await cfgOf(), cur = await get();
-    const p = presetOf(c.T, o.presetId || cur.presetId);
-    const mins = +o.minutes > 0 ? +o.minutes : phaseMin(p, phase);
+    // Between sessions the chosen mode decides; a session already under way keeps the mode it started with.
+    const id = o.presetId || (cur.status === 'idle' ? c.T.presetId : cur.presetId);
+    const p = o.preset && o.preset.id === id ? o.preset : presetOf(c.T, id, cur.spec);
+    const switched = cur.status === 'idle' || p.id !== cur.presetId;
+    // Custom minutes (keep) last for the whole session; a one-off like "just 5 minutes" doesn't.
+    const customWork = o.keep && +o.minutes > 0 ? +o.minutes : switched ? 0 : (cur.customWork || 0);
+    const mins = +o.minutes > 0 ? +o.minutes : phase === 'work' && customWork ? customWork : phaseMin(p, phase);
     const t = Object.assign({}, cur, {
-      phase, status: 'running', presetId: p.id, total: Math.round(mins * 60), endAt: Date.now() + mins * 60000, left: 0,
+      phase, status: 'running', presetId: p.id, spec: { id: p.id, name: p.name, work: p.work, short: p.short, long: p.long, rounds: p.rounds }, customWork,
+      total: Math.round(mins * 60), endAt: Date.now() + mins * 60000, left: 0,
       startedAt: Date.now(), custom: +o.minutes > 0, distractions: phase === 'work' ? 0 : (cur.distractions || 0)
     });
     if (o.tid !== undefined) t.tid = +o.tid || 0;
-    if (o.resetRound || (o.presetId && o.presetId !== cur.presetId)) t.round = 0;
+    if (o.resetRound || p.id !== cur.presetId) t.round = 0;
     await env.saveTimer(t);
     await schedule(t, c);
     if (phase === 'work') await ambientOn(c); else await env.ambientOff();
@@ -71,7 +78,7 @@ export function createTimer(env) {
     const t = await get();
     if (t.status !== 'running' && t.status !== 'paused') return t;
     if (natural && t.status === 'running' && Date.now() < t.endAt - 1500) return t; // fired early: ignore
-    const c = await cfgOf(), T = c.T, p = presetOf(T, t.presetId);
+    const c = await cfgOf(), T = c.T, p = presetOf(T, t.presetId, t.spec);
     const elapsed = natural ? t.total : t.total - leftSec(t);
     await clearAlarms();
     let mins = 0, next;
@@ -86,7 +93,7 @@ export function createTimer(env) {
     if (natural) await play(c, t.phase === 'work' ? T.endSound : T.breakSound);
 
     const auto = forceStart || (next === 'work' ? T.autoWork : T.autoBreak);
-    const nm = phaseMin(p, next);
+    const nm = next === 'work' && t.customWork ? t.customWork : phaseMin(p, next);
     Object.assign(t, { phase: next, status: 'ready', total: nm * 60, left: nm * 60, endAt: 0 });
     await env.saveTimer(t);
     if (auto) await startPhase(next);
@@ -108,7 +115,7 @@ export function createTimer(env) {
     switch (m.op) {
       case 'start':
         if (env.askNotify) env.askNotify();
-        return startPhase(m.phase || (t.status === 'ready' ? t.phase : 'work'), { tid: m.tid, minutes: m.minutes, presetId: m.presetId, resetRound: m.resetRound });
+        return startPhase(m.phase || (t.status === 'ready' ? t.phase : 'work'), { tid: m.tid, minutes: m.minutes, presetId: m.presetId, preset: m.preset, keep: m.keep, resetRound: m.resetRound });
       case 'pause':
         if (t.status !== 'running') return t;
         t.left = leftSec(t); t.status = 'paused';
@@ -134,7 +141,7 @@ export function createTimer(env) {
         await clearAlarms();
         await env.ambientOff();
         env.clearNotify('timer');
-        const s = Object.assign({}, TIMER_IDLE, { tid: t.tid, presetId: t.presetId, round: m.resetRound ? 0 : t.round });
+        const s = Object.assign({}, TIMER_IDLE, { tid: t.tid, presetId: m.presetId || t.presetId, round: m.resetRound ? 0 : t.round });
         await env.saveTimer(s);
         return s;
       }

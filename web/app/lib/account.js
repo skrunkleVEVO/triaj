@@ -12,13 +12,12 @@ export const isPhone = () => { try { return matchMedia('(pointer:coarse)').match
 
 export function companionHelp(forCanvas) {
   if (isPhone()) {
-    return forCanvas ? '<div class="card"><h3>🧩 Canvas syncs from your computer</h3><div class="s">Phones can\'t run browser extensions, so Canvas sync happens on a computer that has the Triaj companion. ' +
+    return forCanvas ? '<div class="cpanel"><h3>Canvas syncs from your computer</h3><div class="s">Phones can\'t run browser extensions, so Canvas sync happens on a computer that has the Triaj companion. ' +
       'Everything it finds shows up here on its own' + (session.user ? '.' : ' once you sign in on both.') + '</div></div>' : '';
   }
-  return '<div class="card warn"><h3>🧩 Add the Triaj companion</h3><div class="s" style="margin-bottom:10px">Websites aren\'t allowed to read other sites (like Canvas or a private calendar) with your sign-in, ' +
-    'so Triaj uses a tiny browser extension for exactly that, plus saving course files into Downloads. Everything else works without it.</div>' +
-    '<div class="btnrow"><a class="btn sm" href="' + COMPANION_ZIP + '" download>⬇ Download companion</a><a class="btn sm sec" href="' + COMPANION_HELP + '" target="_blank" rel="noopener">How to install</a></div>' +
-    '<div class="s" style="margin-top:8px">Chrome, Edge, Brave, Opera, Vivaldi and Firefox. Reload this page after installing it.</div></div>';
+  return '<div class="cpanel"><h3>Sync needs the Triaj companion</h3><div class="s">Browsers don\'t let a website read Canvas with your sign-in, so a small extension does that one job, only on sites you allow. It also saves course files into Downloads. Everything else in Triaj works without it.</div>' +
+    '<div class="btnrow"><a class="btn sm sec" href="' + COMPANION_HELP + '" target="_blank" rel="noopener">See how it works</a><a class="btn sm mute" href="' + COMPANION_ZIP + '" download>Download</a></div>' +
+    '<div class="s" style="margin-top:8px">For Chrome, Edge, Brave, Opera, Vivaldi and Firefox. Reload this page after installing it.</div></div>';
 }
 
 /* ---------------- modal helper ---------------- */
@@ -101,7 +100,7 @@ export function mountAccount(cloud) {
   paint();
   btn.onclick = () => openAccount(cloud, st);
   window.addEventListener('triaj:signin', () => { if (!session.user) showGate(cloud, { closable: true, canGuest: false }); });
-  window.addEventListener('triaj:companion', () => { const s = sheet(companionHelp(false) || '<div class="card"><h3>🧩 Needs a computer</h3><div class="s">This part of Triaj runs through the companion extension, which phones can\'t install. Do it once on a computer; the results sync here.</div></div>'); s.el.querySelector('.sheet').classList.add('narrow'); });
+  window.addEventListener('triaj:companion', () => { const s = sheet(companionHelp(false) || '<div class="cpanel"><h3>Needs a computer</h3><div class="s">This part of Triaj runs through the companion extension, which phones can\'t install. Do it once on a computer; the results sync here.</div></div>'); s.el.querySelector('.sheet').classList.add('narrow'); });
 }
 
 function openAccount(cloud, st) {

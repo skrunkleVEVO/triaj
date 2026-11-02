@@ -10,12 +10,13 @@ import { ext } from './lib/platform.js';
 import * as bridge from './lib/bridge.js';
 import { session, companionHelp, isPhone } from './lib/account.js';
 import { installable, install } from './lib/install.js';
+import { morph } from './lib/morph.js';
 
 /* ================= state ================= */
 const ME = 'page:' + Math.random().toString(36).slice(2);
 let st = normalize(null), timer = { status: 'idle', phase: 'work' }, ready = false, pendingRender = false;
 let todayS = iso(new Date()), tab = 'now', filter = 'all', cal = new Date(), sel = todayS, pd = todayS, bm = new Date(), sv = 'week', wo = 0;
-let editId = 0, justId = 0, lastTab = '', showAlt = false, recOverride = 0, stuck = null, focusTid = 0, presetEdit = false;
+let editId = 0, justId = 0, lastTab = '', showAlt = false, recOverride = 0, stuck = null, focusTid = 0;
 let aiLog = [], aiProps = [], aiBusy = false, syncBusy = '', welcome = false, syncState = { running: false }, reportAll = false;
 const sylRun = {};
 let dlog = {}; // fileId -> {u: updated_at when downloaded, p: path, at}
@@ -67,7 +68,7 @@ ext.storage.onChanged.addListener((ch, area) => {
   if (area !== 'local') return;
   let r = false;
   if (ch.plan && ch.plan.newValue && ch.plan.newValue.by !== ME) { adopt(ch.plan.newValue); r = true; }
-  if (ch.timer) { timer = ch.timer.newValue || { status: 'idle', phase: 'work' }; r = true; }
+  if (ch.timer) { timer = ch.timer.newValue || { status: 'idle', phase: 'work' }; if (timer.status === 'idle') zenPeek = false; r = true; }
   if (ch.syncState) { syncState = ch.syncState.newValue || { running: false }; r = true; }
   if (ch.bkState || ch.snaps) { loadBk(); }
   if (r) softRender();
@@ -79,7 +80,7 @@ document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender
 /* ================= actions ================= */
 const ACT = {};
 let EL = null; // element that triggered the current action
-ACT.go = (t) => { tab = t; editId = 0; render(); window.scrollTo(0, 0); history.replaceState(null, '', '#' + t); };
+ACT.go = (t) => { tab = t; editId = 0; if (t === 'focus') zenPeek = false; render(); window.scrollTo(0, 0); history.replaceState(null, '', '#' + t); };
 ACT.addTask = (date) => {
   const t = $('nt').value.trim(); if (!t) return;
   st.tasks.push({ id: newId(), t, d: date ? date : ($('nd') ? $('nd').value : ''), p: $('np').value, cls: +$('nc').value || 0, est: +$('ne').value, fixed: Math.max(0, +$('nf').value || 0), done: false, spent: 0, inClass: !!($('nic') && $('nic').checked) });
@@ -237,7 +238,7 @@ function blockedCard() {
 }
 
 ACT.filter = (f) => { filter = f; render(); };
-ACT.quickAdd = () => { const v = $('qa').value.trim(); if (!v) return; st.tasks.push({ id: newId(), t: v, d: '', p: 'm', cls: 0, est: 60, fixed: 0, done: false, spent: 0 }); save(); render(); toast('Added ✓'); };
+ACT.quickAdd = () => { const v = $('qa').value.trim(); if (!v) return; st.tasks.push({ id: newId(), t: v, d: '', p: 'm', cls: 0, est: 60, fixed: 0, done: false, spent: 0 }); save(); $('qa').value = ''; render(); toast('Added ✓'); };
 ACT.doneChunk = (id, m) => { st.tasks.forEach((x) => { if (x.id === id) x.spent = (x.spent || 0) + m; }); save(); render(); burst(); toast(dur(m) + ' logged ✓'); };
 ACT.calMove = (n) => { cal = new Date(cal.getFullYear(), cal.getMonth() + n, 1); render(); };
 ACT.selDay = (s) => { sel = s; render(); };
@@ -316,11 +317,12 @@ ACT.breakDown = (tid) => breakDown(tid);
 ACT.complete = (id) => { st.tasks.forEach((t) => { if (t.id === id) { t.done = true; t.doneAt = todayS; } }); const ready = sweepBlocks(st); save(); send({ cmd: 'timer', op: 'stop' }); burst(); toast('Task complete! 🎉'); readyToast(ready); };
 
 /* --- focus timer --- */
-ACT.fStart = (tid, minutes, phase) => send({ cmd: 'timer', op: 'start', tid: tid == null ? focusTid : tid, minutes: minutes || 0, phase: phase || 'work' });
-ACT.fStartSel = () => { const v = +$('fcustom').value; send({ cmd: 'timer', op: 'start', tid: +$('ftask').value || 0, minutes: v > 0 ? v : 0, phase: 'work' }); };
+function startMsg(o) { if (timer.status === 'idle') { const p = preset(); o.presetId = p.id; o.preset = p; } return Object.assign({ cmd: 'timer', op: 'start' }, o); }
+ACT.fStart = (tid, minutes, phase) => send(startMsg({ tid: tid == null ? focusTid : tid, minutes: minutes || 0, phase: phase || 'work' }));
+ACT.fStartSel = () => { const v = Math.min(240, +$('fcustom').value || 0); if (v > 0) { T().lastCustom = v; save(); } send(startMsg({ tid: +$('ftask').value || 0, minutes: v > 0 ? v : 0, keep: v > 0, phase: 'work' })); };
 ACT.fOp = (op, extra) => send(Object.assign({ cmd: 'timer', op }, extra || {}));
 ACT.fTask = () => { const el = EL; focusTid = +el.value || 0; if (timer.status !== 'idle') send({ cmd: 'timer', op: 'task', tid: focusTid }); };
-ACT.fPreset = (id) => { T().presetId = id; save(); if (timer.status === 'idle' || timer.status === 'ready') send({ cmd: 'timer', op: 'stop', resetRound: true }); render(); };
+ACT.fPreset = (id) => { T().presetId = id; save(); if (timer.status === 'idle' || timer.status === 'ready') send({ cmd: 'timer', op: 'stop', resetRound: true, presetId: id }); else toast(preset(id).name + ' starts after this session'); render(); };
 ACT.tSet = (k) => { const el = EL;
   const v = el.type === 'checkbox' ? el.checked : el.type === 'range' || el.type === 'number' ? +el.value : el.value;
   T()[k] = v; save();
@@ -330,8 +332,7 @@ ACT.tSet = (k) => { const el = EL;
 };
 ACT.preview = (key) => { const s = T()[key]; playSound(s, T().volume); };
 ACT.previewAmb = () => { send({ cmd: 'timer', op: 'ambient' }); if (timer.status !== 'running' || timer.phase !== 'work') toast('Background noise plays during focus rounds'); };
-ACT.presetEdit = () => { presetEdit = !presetEdit; render(); };
-ACT.pSet = (i, k) => { const el = EL; const p = T().presets[i]; if (!p) return; p[k] = k === 'name' ? (el.value.trim() || p.name) : Math.max(1, Math.min(240, +el.value || 1)); save(); };
+ACT.pSet = (i, k) => { const el = EL; const p = T().presets[i]; if (!p) return; p[k] = k === 'name' ? (el.value.trim() || p.name) : Math.max(1, Math.min(240, +el.value || 1)); save(); softRender(); };
 ACT.pAdd = () => { const id = 'c' + Date.now(); T().presets.push({ id, name: 'My timer', work: 30, short: 5, long: 20, rounds: 4 }); T().presetId = id; save(); render(); };
 ACT.pDel = (i) => { if (T().presets.length < 2) return toast('Keep at least one timer'); const p = T().presets.splice(i, 1)[0]; if (T().presetId === p.id) T().presetId = T().presets[0].id; save(); render(); };
 ACT.pReset = () => { if (!confirm('Restore the built-in timers? Custom ones are removed.')) return; T().presets = PRESETS.map((p) => Object.assign({}, p)); T().presetId = 'pomo'; save(); render(); };
@@ -502,13 +503,13 @@ ACT.snapRestore = async (i) => {
   applyRestore({ plan: sn.plan, dlog: sn.dlog }, 'an earlier copy from ' + when);
 };
 function restoreCard(big) {
-  return '<div class="card' + (big ? ' hero' : '') + '"><h3>' + (big ? '🛟 Had data before? Bring it back' : '♻️ Restore from a backup file') + '</h3>' +
-    '<div class="s" style="margin-bottom:10px' + (big ? ';color:#fff' : '') + '">Pick <b>Downloads → Triaj Backups → triaj-backup-latest.json</b> (or a dated one). Backups from the My Planner extension (<b>My Planner Backups → planner-backup-latest.json</b>) and from the old Claude artifact work too.</div>' +
-    '<button class="btn"' + (big ? ' style="background:#fff;color:#1c1c22"' : '') + C('pickRestore') + '>Choose backup file</button><input type="file" id="rf" accept=".json,application/json" style="display:none"' + CH('restore') + '></div>';
+  return '<div class="card"><h3>' + (big ? 'Had data before? Bring it back' : 'Restore from a backup file') + '</h3>' +
+    '<div class="s" style="margin-bottom:10px">Pick <b>Downloads → Triaj Backups → triaj-backup-latest.json</b> (or a dated one). Backups from the My Planner extension (<b>My Planner Backups → planner-backup-latest.json</b>) and from the old Claude artifact work too.</div>' +
+    '<button class="btn sm sec"' + C('pickRestore') + '>Choose backup file</button><input type="file" id="rf" accept=".json,application/json" style="display:none"' + CH('restore') + '></div>';
 }
 function backupBanner() {
   if (session.user || !bk.loaded || bk.perm || st.cfg.bkBannerOff || st.cfg.autoBackup === false || !(st.tasks.length || st.classes.length)) return '';
-  return '<div class="card warn"><div class="hrow"><h3>🛟 Protect your planner</h3><button class="x"' + C('bkBannerOff') + '>×</button></div><div class="s" style="margin-bottom:8px">Right now your planner only lives in this browser. Sign in to keep it in your account and on all your devices, or save a backup file to Downloads every day.</div><div class="btnrow"><button class="btn sm"' + C('signIn') + '>Sign in</button><button class="btn sm sec"' + C('bkEnable') + '>Turn on daily backups</button></div></div>';
+  return '<div class="notice"><i class="sd warn"></i><div class="t">Your planner only lives in this browser.</div><button class="tbtn"' + C('signIn') + '>Sign in</button><button class="tbtn"' + C('bkEnable') + '>Daily backups</button><button class="iconbtn" aria-label="Dismiss"' + C('bkBannerOff') + '>' + ico('x') + '</button></div>';
 }
 function viewBackup() {
   if (!bk.loaded) { loadBk(); return '<div class="empty">Loading…</div>'; }
@@ -676,12 +677,12 @@ function icChip(x) {
   if (!sl) return '<span class="chip ic warn" title="Its class does not meet that day">📝 In class · pick a time</span>';
   return '<span class="chip ic">📝 In class ' + tf(sl.s) + '–' + tf(sl.e) + (sl.loc ? ' · ' + esc(sl.loc) : '') + '</span>';
 }
-function tag(t) { const c = cls(t.cls); return c ? '<span class="tag" style="background:' + c.color + ';color:' + onColor(c.color) + '">' + esc(c.n) + '</span>' : ''; }
+// Canvas course codes read like database slugs ("APSC_O 172 101 2025W1"): show the part a student says out loud.
+function shortCourse(n) { const m = String(n || '').trim().match(/^([A-Za-z]{2,6})(?:_[A-Za-z]+)?[\s-]*(\d{2,4}[A-Za-z]?)\b/); return m ? m[1].toUpperCase() + ' ' + m[2] : String(n || ''); }
+function tag(t) { const c = cls(t.cls); return c ? '<span class="tag" style="--c:' + c.color + '" title="' + esc(c.n) + '">' + esc(shortCourse(c.n)) + '</span>' : ''; }
+function ico(n) { return '<svg class="ic" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
+function emptyState(title, body, actions, bare) { return '<div class="estate' + (bare ? ' bare' : '') + '"><h3>' + esc(title) + '</h3><div class="s">' + esc(body) + '</div>' + (actions ? '<div class="btnrow">' + actions + '</div>' : '') + '</div>'; }
 function hourH(n) { const h = (window.innerHeight || 700) - ((window.innerWidth || 0) >= 900 ? 220 : 310); return Math.max(42, Math.min(96, Math.floor(h / Math.max(1, n)))); }
-function ring(pct, size, sw) {
-  const r = (size - sw) / 2, c = 2 * Math.PI * r;
-  return '<div class="ringw" style="width:' + size + 'px;height:' + size + 'px"><svg width="' + size + '" height="' + size + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--soft)" stroke-width="' + sw + '"/><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--pri)" stroke-width="' + sw + '" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - pct / 100)) + '" style="transition:stroke-dashoffset .6s"/></svg><b style="font-size:' + Math.round(size / 4.4) + 'px">' + pct + '%</b></div>';
-}
 function statusBox(s) {
   if (!s) return '';
   const ic = { ok: '✅', info: 'ℹ️', warn: '⚠️', err: '❌' }[s.kind] || '';
@@ -745,7 +746,7 @@ function viewPlan() {
   const rows = items.map((i) => {
     const sub = i.kind === 'class' ? 'Class' + (i.loc ? ' · ' + esc(i.loc) : '') : i.kind === 'work' ? 'Study time · ' + dur(i.e - i.s) : SUBL[i.kind];
     const b = i.kind === 'work' ? '<button class="x" title="Start focus"' + C('fStart', i.t.id, Math.min(i.e - i.s, 90)) + '>▶</button><button class="x" title="Mark this block done"' + C('doneChunk', i.t.id, i.e - i.s) + '>✓</button>' : i.kind === 'block' ? '<button class="x"' + C('delBlock', i.id) + '>×</button>' : '';
-    return '<div class="blk" style="border-left:5px solid ' + i.color + '"><div class="tm">' + tf(i.s) + '<br>' + tf(i.e) + '</div><div class="t">' + esc(i.title) + '<div class="s">' + sub + '</div></div>' + b + '</div>';
+    return '<div class="blk"><span class="dot" style="background:' + i.color + '"></span><div class="tm">' + tf(i.s) + '<br>' + tf(i.e) + '</div><div class="t">' + esc(i.title) + '<div class="s">' + sub + '</div></div>' + b + '</div>';
   }).join('');
   const risk = P.open.filter((t) => t.d && t.d <= hs && (P.rem[t.id] > 0 || (P.last[t.id] && P.last[t.id] > t.d)));
   const ad = allDay(pd);
@@ -899,24 +900,39 @@ ACT.allowCanvas = () => {
     canvasPerm = true; toast('Access restored ✓ Syncing…'); ACT.syncNow('canvas');
   }).catch(() => toast('The browser could not show the prompt. Try again from this page.'));
 };
+// Where this browser stands with the companion: a line inside the Canvas panel, not an alarm over the app.
+function companionRow() {
+  if (bridge.available()) return '<div class="cstat"><i class="sd ok"></i>Companion connected in this browser</div>';
+  return companionHelp(true);
+}
 function permCard() {
-  if (canvasPerm === 'noext' && st.canvas.host) return isPhone() ? '' : companionHelp(true);
   if (!st.canvas.host || canvasPerm !== false) return '';
-  return '<div class="card warn"><h3>🔑 Canvas access is switched off</h3><div class="s" style="margin-bottom:8px">You\'re signed in to Canvas, but your browser isn\'t letting the Triaj companion read <b>' + esc(st.canvas.host) +
-    '</b> right now. That\'s a browser permission, not your login. It usually goes away after the extension is reloaded from a new folder or its site access is changed in the extensions menu.</div>' +
-    '<button class="btn"' + C('allowCanvas') + '>Allow access to ' + esc(st.canvas.host) + '</button>' +
-    '<div class="s" style="margin-top:8px">No prompt? Open Canvas, click the <b>Triaj</b> companion icon in your browser\'s toolbar, and press <b>Sync from this tab</b>. That works without this permission.</div></div>';
+  return '<div class="cpanel"><h3>Allow access to ' + esc(st.canvas.host) + '</h3><div class="s pgap">Your browser has stopped letting the Triaj companion read this site. That\'s a browser permission, not your Canvas sign-in, and it usually resets after the extension is reloaded or its site access changes.</div>' +
+    '<button class="btn sm"' + C('allowCanvas') + '>Allow access</button>' +
+    '<div class="s" style="margin-top:8px">No prompt? Open Canvas, click the <b>Triaj</b> icon in your toolbar, and press <b>Sync from this tab</b>.</div></div>';
 }
 function syncMini() {
-  if (st.canvas.host && canvasPerm === false) return permCard();
+  if (st.canvas.host && canvasPerm === false) return '<div class="card"><h3>Canvas</h3>' + permCard() + '</div>';
   if (!st.canvas.host) return '<div class="card"><h3>🔄 Canvas sync is off</h3><div class="s" style="margin-bottom:8px">Connect once and new assignments show up here on their own.</div><button class="btn sec"' + C('go', 'sync') + '>Set up Canvas sync</button></div>';
   const s = st.canvas.lastStatus;
   return '<div class="card"><div class="hrow"><h3>🔄 Canvas</h3><button class="btn sm sec"' + C('syncNow', 'all') + (syncBusy || syncState.running ? ' disabled' : '') + '>' + (syncBusy || syncState.running ? 'Syncing…' : 'Sync now') + '</button></div>' + liveStatus(s) + (st.canvas.report ? '<a class="lnk" href="#"' + C('go', 'sync') + '>See what Canvas has vs. your planner →</a>' : '') + '</div>';
 }
-function suggestCard() {
+function pickRow(t, i) {
+  return '<div class="item"><div class="prank">' + i + '</div><div class="t">' + esc(t.t) + '<div class="s">' + tag(t) + reason(t) + ' · ~' + dur(remaining(t) || need(t)) + '</div></div><button class="iconbtn" title="Focus on this" aria-label="Focus on ' + esc(t.t) + '"' + C('fStart', t.id) + '>' + ico('play') + '</button></div>';
+}
+// What to do after the main thing. skip: the task already shown as "do this next".
+function picksCard(skip, n) {
+  const open = st.tasks.filter((t) => !t.done);
+  const top = open.filter((t) => workable(t) && t.id !== skip).map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).slice(0, n);
+  if (!top.length) return '';
+  const rest = open.length - top.length - (skip ? 1 : 0);
+  return '<div class="card"><h3>' + (skip ? 'After that' : 'Top picks') + '</h3>' + top.map((x, i) => pickRow(x.t, i + (skip ? 2 : 1))).join('') +
+    (rest > 0 ? '<button class="tbtn more"' + C('go', 'tasks') + '>Ignore the other ' + rest + ' for now</button>' : '') + '</div>';
+}
+// The week as one verdict and the one deadline that matters. The Schedule tab has the rest.
+function weekCard() {
   const open = st.tasks.filter((t) => !t.done);
   if (!open.length) return '';
-  const top = open.filter(workable).map((t) => ({ t, s: score(t) })).sort((a, b) => b.s - a.s).slice(0, 3);
   const nm = new Date().getHours() * 60 + new Date().getMinutes(), d = new Date(); d.setHours(0, 0, 0, 0);
   let cap = 0;
   for (let i = 0; i < 7; i++) {
@@ -927,14 +943,15 @@ function suggestCard() {
   const due = open.filter((t) => t.d && t.d <= ls).sort((a, b) => (a.d < b.d ? -1 : 1)); // in-class items count 0 study time
   const needM = due.reduce((a, t) => a + remaining(t), 0);
   const pct = cap ? Math.min(100, Math.round(needM / cap * 100)) : (needM ? 100 : 0);
-  const msg = !needM ? 'Nothing due in the next 7 days.' : needM > cap ? 'Overloaded: about ' + dur(needM) + ' of work due, but only about ' + dur(cap) + ' of study time. Start the top picks today, or ask the AI tab to help trim.' : needM > cap * 0.75 ? 'Tight but doable: ' + dur(needM) + ' of work due. Try not to skip study blocks.' : 'On track: ' + dur(needM) + ' of work due in the next 7 days.';
-  const col = needM > cap ? 'var(--bad)' : needM > cap * 0.75 ? '#e6a100' : 'var(--ok)';
-  return '<div class="card"><h3>🎯 Top picks' + (open.length > 6 ? ' (just do these first)' : '') + '</h3>' + top.map((x, i) =>
-    '<div class="item"><div style="font-weight:700;color:var(--pri);width:18px">' + (i + 1) + '</div><div class="t">' + esc(x.t.t) + '<div class="s">' + tag(x.t) + reason(x.t) + ' · ~' + dur(remaining(x.t) || need(x.t)) + '</div></div><button class="x" title="Focus on this"' + C('fStart', x.t.id) + '>▶</button></div>').join('') +
-    (open.length > 3 ? '<div class="s" style="margin-top:6px">Ignore the other ' + (open.length - 3) + ' for now.</div>' : '') + '</div>' +
-    '<div class="card"><h3>📡 Next 7 days</h3><div class="bar"><span style="width:' + pct + '%;background:' + col + '"></span></div><div class="s">' + msg + '</div>' +
-    (due.length ? '<div style="margin-top:8px">' + due.slice(0, 5).map((t) => { const dd = new Date(t.d + 'T00:00:00'); return '<div class="s">' + (t.d < todayS ? 'Overdue' : DN[dd.getDay()] + ' ' + dd.getDate()) + ' · ' + esc(t.t) + '</div>'; }).join('') + '</div>' : '') + '</div>';
+  const over = needM > cap, tight = needM > cap * 0.75;
+  const late = due.filter((t) => t.d < todayS).length, nxt = due.find((t) => t.d >= todayS);
+  const next = (late ? '<div class="s"><span class="late">' + late + ' overdue</span></div>' : '') +
+    (nxt ? '<div class="s one">Next: ' + niceDay(nxt.d) + ' · ' + esc(nxt.t) + '</div>' : '');
+  return '<div class="card"><div class="hrow"><h3>Next 7 days</h3>' + (needM ? '<span class="vstat"><i class="sd ' + (over ? 'err' : tight ? 'warn' : 'ok') + '"></i>' + (over ? 'Overloaded' : tight ? 'Tight' : 'On track') + '</span>' : '') + '</div>' +
+    (needM ? '<div class="bar' + (over ? ' over' : tight ? ' tight' : '') + '"><span style="width:' + pct + '%"></span></div><div class="s">' + dur(needM) + ' of work · about ' + dur(cap) + ' free' + (over ? '. Start the top picks, or ask AI to trim.' : '') + '</div>' : '<div class="s">Nothing due in the next 7 days.</div>') +
+    next + '<button class="tbtn more"' + C('openWeek') + '>Open schedule</button></div>';
 }
+function suggestCard() { return picksCard(0, 3) + weekCard(); }
 
 /* ---------- focus ---------- */
 function tLeft() { return timer.status === 'running' ? Math.max(0, Math.round((timer.endAt - Date.now()) / 1000)) : (timer.left || 0); }
@@ -951,41 +968,69 @@ function streak(by) {
   while (f(iso(d)) >= 25 && sk < 365) { sk++; d.setDate(d.getDate() - 1); }
   return sk;
 }
-function timerCard(big) {
-  const p = preset(timer.presetId), ph = timer.phase || 'work', brk = ph !== 'work', idle = timer.status === 'idle';
+// The mode on the dial: the chosen one between sessions, the session's own while one is under way.
+function activePreset() {
+  if (timer.status === 'idle') return preset();
+  return T().presets.find((p) => p.id === timer.presetId) || timer.spec || preset();
+}
+function timerDial() {
+  const p = activePreset(), idle = timer.status === 'idle', brk = (timer.phase || 'work') !== 'work';
   const left = idle ? p.work * 60 : tLeft(), total = idle ? p.work * 60 : (timer.total || 1);
-  const size = big ? 240 : 180, r = size / 2 - 12, c = 2 * Math.PI * r;
-  const roundsDone = (timer.round || 0) % Math.max(1, p.rounds);
-  const dots = '<div class="fdots">' + Array.from({ length: p.rounds }, (_, i) => '<i class="' + (i < roundsDone || (roundsDone === 0 && timer.round > 0 && ph === 'long') ? 'on' : '') + '"></i>').join('') + '</div>';
-  const tid = timer.status === 'idle' ? focusTid : timer.tid;
-  const head = idle ? 'Ready to focus' : timer.status === 'ready' ? 'Up next: ' + LABEL[ph] : timer.status === 'paused' ? 'Paused · ' + LABEL[ph] : LABEL[ph];
-  const sub = brk ? 'Stand up, stretch, drink water, look away from screens.' : (taskName(tid) || 'No task picked: just focus');
-  let btns;
-  if (idle) btns = '<button class="btn"' + C('fStart', tid) + '>▶ Start ' + p.work + ' min focus</button>';
-  else if (timer.status === 'ready') btns = '<div class="btnrow"><button class="btn"' + C('fOp', 'start') + '>▶ Start ' + LABEL[ph].toLowerCase() + '</button><button class="btn mute"' + C('fOp', 'stop') + '>Done for now</button></div>' + (brk ? '' : '') ;
-  else btns = '<div class="btnrow">' + (timer.status === 'running' ? '<button class="btn"' + C('fOp', 'pause') + '>❚❚ Pause</button>' : '<button class="btn"' + C('fOp', 'resume') + '>▶ Resume</button>') +
-    '<button class="btn sec"' + C('fOp', 'skip') + '>' + (brk ? 'Skip break' : 'Finish round') + '</button></div><div class="btnrow" style="margin-top:8px"><button class="btn sec"' + C('fOp', 'add', { minutes: 5 }) + '>+5 min</button>' +
-    (brk ? '' : '<button class="btn sec"' + C('fOp', 'distracted') + '>I got distracted</button>') + '<button class="btn mute"' + C('fOp', 'stop') + '>Stop</button></div>';
-  const dmsg = !brk && timer.distractions ? '<div class="s" style="margin:6px 0">Distractions noticed this round: ' + timer.distractions + '. Noticing is the skill. Back to it.</div>' : '';
+  const r = 115, c = 2 * Math.PI * r;
+  return '<div class="dial' + (brk ? ' brk' : '') + '"><svg viewBox="0 0 240 240" aria-hidden="true"><circle class="dtrack" cx="120" cy="120" r="' + r + '"/><circle id="fring" class="dfill" data-c="' + c + '" cx="120" cy="120" r="' + r + '" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - left / total)) + '"/></svg>' +
+    '<div class="dmid"><div id="ftime" class="ftime" role="timer">' + fmtT(left) + '</div><div class="s">' + esc(p.name) + '</div></div></div>';
+}
+function timerControls() {
+  const ph = timer.phase || 'work', brk = ph !== 'work', tid = timer.status === 'idle' ? focusTid : timer.tid;
+  if (timer.status === 'idle') return '<button class="btn"' + C('fStart', tid) + '>' + ico('play') + 'Start ' + activePreset().work + ' min focus</button>';
+  if (timer.status === 'ready') return '<div class="tmain"><button class="btn"' + C('fOp', 'start') + '>' + ico('play') + 'Start ' + LABEL[ph].toLowerCase() + '</button></div><div class="quiet"><button class="tbtn"' + C('fOp', 'stop') + '>Done for now</button></div>';
   const task = st.tasks.find((x) => x.id === tid);
-  return '<div class="card fwrap"><span class="fphase' + (brk ? ' brk' : '') + '">' + esc(head) + '</span><div style="font-weight:700;margin:8px 0 2px">' + esc(sub) + '</div>' +
-    '<div class="ringw" style="width:' + size + 'px;height:' + size + 'px;margin:10px auto"><svg width="' + size + '" height="' + size + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--soft)" stroke-width="12"/><circle id="fring" data-c="' + c + '" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + (brk ? '#16a34a' : 'var(--pri)') + '" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - left / total)) + '"/></svg><div><div id="ftime" class="ftime' + (brk ? ' brk' : '') + '" style="font-size:' + (big ? 60 : 44) + 'px">' + fmtT(left) + '</div><div class="s">' + esc(p.name) + '</div></div></div>' +
-    dots + dmsg + btns +
-    (task && !task.done && !brk && !idle ? '<button class="btn ghost" style="margin-top:8px"' + C('complete', task.id) + '>✓ Mark task done</button>' : '') + '</div>';
+  return '<div class="tmain">' + (timer.status === 'running' ? '<button class="btn"' + C('fOp', 'pause') + '>' + ico('pause') + 'Pause</button>' : '<button class="btn"' + C('fOp', 'resume') + '>' + ico('play') + 'Resume</button>') +
+    '<button class="btn sec"' + C('fOp', 'skip') + '>' + (brk ? 'Skip break' : 'Finish round') + '</button></div><div class="quiet"><button class="tbtn"' + C('fOp', 'add', { minutes: 5 }) + '>+5 min</button>' +
+    (brk ? '' : '<button class="tbtn"' + C('fOp', 'distracted') + '>I got distracted</button>') +
+    (task && !task.done && !brk ? '<button class="tbtn"' + C('complete', task.id) + '>Mark task done</button>' : '') + '<button class="tbtn"' + C('fOp', 'stop') + '>Stop</button></div>';
+}
+function timerHead() {
+  const ph = timer.phase || 'work', brk = ph !== 'work', tid = timer.status === 'idle' ? focusTid : timer.tid;
+  const state = timer.status === 'ready' ? 'Up next: ' + LABEL[ph] : timer.status === 'paused' ? 'Paused' : LABEL[ph];
+  const name = brk ? 'Stand up, stretch, drink water, look away from screens.' : (taskName(tid) || 'No task picked: just focus');
+  const dmsg = !brk && timer.distractions ? '<div class="s">Noticed ' + timer.distractions + ' distraction' + (timer.distractions === 1 ? '' : 's') + ' this round. Noticing is the skill.</div>' : '';
+  return { state, name, dmsg };
+}
+function roundText() {
+  const p = activePreset(), rounds = Math.max(1, p.rounds);
+  return 'Round ' + ((timer.round || 0) % rounds + 1) + ' of ' + rounds;
+}
+// A session on the Now tab: the timer and nothing else, one click from full screen.
+function timerCard() {
+  const h = timerHead();
+  return '<div class="card tcard"><div class="hrow"><span class="vstat">' + esc(h.state) + ' · ' + roundText() + '</span><button class="tbtn"' + C('go', 'focus') + '>' + ico('expand') + 'Zen</button></div>' +
+    '<div class="tname">' + esc(h.name) + '</div>' + timerDial() + h.dmsg + timerControls() + '</div>';
+}
+/* Zen: while a session runs, the Focus tab is only the clock, the task and the controls. */
+let zenPeek = false, focusPane = '';
+function isZen() { return tab === 'focus' && timer.status !== 'idle' && !zenPeek; }
+ACT.zenExit = () => { zenPeek = true; render(); };
+ACT.zenEnter = () => { zenPeek = false; render(); };
+ACT.fPane = (id) => { focusPane = focusPane === id ? '' : id; render(); };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isZen() && !document.querySelector('.sheetwrap')) ACT.zenExit(); });
+function zenView() {
+  const h = timerHead(), brk = (timer.phase || 'work') !== 'work';
+  return '<div class="zen' + (brk ? ' brk' : '') + '" data-key="zen"><div class="ztop"><span class="s">' + esc(h.state) + ' · ' + roundText() + '</span><button class="tbtn"' + C('zenExit') + '>' + ico('x') + 'Exit zen</button></div>' +
+    '<div class="zcore">' + timerDial() + '<h1 class="ztask">' + esc(h.name) + '</h1>' + h.dmsg + '<div class="zctl">' + timerControls() + '</div></div></div>';
 }
 /* --- blocking distracting sites during focus (done by the companion) --- */
 const BLOCK_SUGGEST = ['youtube.com', 'instagram.com', 'tiktok.com', 'reddit.com', 'x.com', 'facebook.com', 'netflix.com', 'twitch.tv', 'discord.com'];
 function blockCfg() { return Object.assign({ on: false, sites: BLOCK_SUGGEST.slice(0, 5) }, st.cfg.focusBlock || {}); }
-function blockCard() {
+function blockBody() {
   const b = blockCfg(), has = bridge.available();
   const chk = '<div class="check"><input type="checkbox" id="fb_on"' + (b.on ? ' checked' : '') + (has ? '' : ' disabled') + CH('fbOn') + '><label for="fb_on">Block these sites while a focus round runs</label></div>';
-  const list = '<textarea id="fb_sites" rows="4" spellcheck="false" placeholder="youtube.com"' + CH('fbSites') + '>' + esc(b.sites.join('\n')) + '</textarea>';
+  const list = '<textarea id="fb_sites" rows="4" spellcheck="false" placeholder="youtube.com" aria-label="Sites to block, one per line"' + CH('fbSites') + '>' + esc(b.sites.join('\n')) + '</textarea>';
   const add = BLOCK_SUGGEST.filter((x) => b.sites.indexOf(x) < 0).map((x) => '<button class="pill"' + C('fbAdd', x) + '>+ ' + esc(x) + '</button>').join('');
-  return '<div class="card"><h3>Block distractions</h3>' +
-    (has ? '<div class="s" style="margin-bottom:8px">During focus, these open a short "back to focus" page instead. Breaks are free. One site per line.</div>'
-      : '<div class="stbox warn" style="margin:0 0 10px"><b>Needs the Triaj companion</b><div class="s">Blocking is done by the browser extension on your computer. ' + (isPhone() ? 'Phones can\'t run it.' : '<a class="lnk" href="../#companion" target="_blank" rel="noopener">Add the companion</a>, then reload.') + '</div></div>') +
-    chk + list + (add ? '<div class="conf-row" style="margin-bottom:10px">' + add + '</div>' : '') +
-    (has ? '<button class="btn sm sec"' + C('fbPerm') + '>Show a friendly page instead of an error</button><div class="s" style="margin-top:6px">Optional. Lets the companion swap blocked tabs for a page with your timer.</div>' : '') + '</div>';
+  return (has ? '<div class="s pgap">During focus, these open a short "back to focus" page instead. Breaks are free. One site per line.</div>'
+    : '<div class="s pgap">Blocking runs in the Triaj companion, a browser extension. ' + (isPhone() ? 'Phones can\'t run it, so this works from a computer.' : '<a class="lnk" href="#"' + C('go', 'sync') + '>Set it up under Sync</a>, then reload.') + '</div>') +
+    chk + list + (add ? '<div class="conf-row pgap">' + add + '</div>' : '') +
+    (has ? '<button class="btn sm sec"' + C('fbPerm') + '>Show a friendly page instead of an error</button><div class="s" style="margin-top:6px">Optional. Lets the companion swap blocked tabs for a page with your timer.</div>' : '');
 }
 function fbSave(o) { st.cfg.focusBlock = Object.assign(blockCfg(), o); save(); }
 ACT.fbOn = () => { fbSave({ on: EL.checked }); toast(EL.checked ? 'Blocking during focus is on' : 'Blocking is off'); };
@@ -995,48 +1040,60 @@ ACT.fbPerm = async () => { await new Promise((r) => setTimeout(r, 1200)); const 
 bridge.on('setBlock', (d) => { if (d) { fbSave({ on: !!d.on }); render(); } });
 bridge.on('go', (d) => { if (d && d.hash) ACT.go(d.hash); });
 
-function viewFocus() {
-  const t = T(), open = sorted(st.tasks.filter((x) => !x.done && !x.inClass));
-  if (!focusTid && open[0]) { const ok = open.filter(workable); focusTid = (ok.length ? ok : open).slice().sort((a, b) => score(b) - score(a))[0].id; }
-  const curTid = timer.status === 'idle' ? focusTid : timer.tid;
-  const presets = '<div class="presets">' + t.presets.map((p) => '<button class="pill' + (t.presetId === p.id ? ' on' : '') + '"' + C('fPreset', p.id) + '>' + esc(p.name) + ' · ' + p.work + '/' + p.short + '</button>').join('') + '<button class="pill"' + C('presetEdit') + '>' + (presetEdit ? 'Done editing' : '✎ Edit') + '</button></div>';
-  const taskSel = '<span class="lbl">Working on</span><select id="ftask"' + CH('fTask') + '><option value="0">Just focus (no task)</option>' + open.map((x) => '<option value="' + x.id + '"' + (x.id === curTid ? ' selected' : '') + '>' + (isBlocked(st, x) ? '🚧 ' : '') + esc(x.t) + (x.d ? ' · due ' + x.d : '') + '</option>').join('') + '</select>';
-  const quick = '<div class="row"><input type="number" id="fcustom" min="1" max="240" placeholder="Custom minutes" style="margin:0"' + EN('fStartSel') + '><button class="btn sec" style="flex:none;width:auto;padding:10px 14px;margin:0"' + C('fStartSel') + '>Start custom</button></div>' +
-    '<div class="btnrow" style="margin-top:8px"><button class="btn sec"' + C('fStart', undefined, 5) + '>Just 5 min</button><button class="btn sec"' + C('fStart', 0, 0, 'short') + '>Break now</button></div>';
-  const editor = presetEdit ? '<div class="card"><h3>Your timers</h3><div class="pgrid ph"><span>Name</span><span>Focus</span><span>Short</span><span>Long</span><span>Rounds</span><span></span></div>' +
-    t.presets.map((p, i) => '<div class="pgrid"><input value="' + esc(p.name) + '"' + CH('pSet', i, 'name') + '>' + ['work', 'short', 'long', 'rounds'].map((k) => '<input type="number" min="1" max="240" value="' + p[k] + '"' + CH('pSet', i, k) + '>').join('') + '<button class="x"' + C('pDel', i) + '>×</button></div>').join('') +
-    '<div class="s" style="margin:6px 0">Minutes for focus and breaks. A long break comes after every set of rounds.</div><div class="btnrow"><button class="btn sec"' + C('pAdd') + '>＋ New timer</button><button class="btn mute"' + C('pReset') + '>Restore defaults</button></div></div>' : '';
-  const sndSel = (key, label) => '<span class="lbl">' + label + '</span><div class="sndrow"><select' + CH('tSet', key) + '>' + Object.keys(SOUNDS).map((k) => '<option value="' + k + '"' + (t[key] === k ? ' selected' : '') + '>' + SOUNDS[k] + '</option>').join('') + '</select><button class="btn sm sec"' + C('preview', key) + '>▶</button></div>';
-  const chk = (key, label) => '<div class="check"><input type="checkbox" id="t_' + key + '"' + (t[key] ? ' checked' : '') + CH('tSet', key) + '><label for="t_' + key + '">' + label + '</label></div>';
-  const sounds = '<div class="card"><h3>🔔 Sounds & nudges</h3>' + sndSel('endSound', 'When focus ends') + sndSel('breakSound', 'When a break ends') +
-    '<span class="lbl">Refocus nudge during focus</span><div class="row"><select' + CH('tSet', 'refocus') + '>' + [[0, 'Off'], [5, 'Every 5 min'], [10, 'Every 10 min'], [15, 'Every 15 min'], [20, 'Every 20 min']].map((o) => '<option value="' + o[0] + '"' + (+t.refocus === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
-    sndSel('refocusSound', 'Nudge sound') + chk('refocusNotify', 'Also show a "still with it?" pop-up') +
-    '<span class="lbl">Volume</span><input type="range" min="0" max="1" step="0.05" value="' + t.volume + '"' + CH('tSet', 'volume') + '>' +
-    '<span class="lbl">Background noise while focusing</span><div class="sndrow"><select' + CH('tSet', 'ambient') + '>' + Object.keys(AMBIENT).map((k) => '<option value="' + k + '"' + (t.ambient === k ? ' selected' : '') + '>' + AMBIENT[k] + '</option>').join('') + '</select><button class="btn sm sec"' + C('previewAmb') + '>▶</button></div>' +
-    '<span class="lbl">Noise volume</span><input type="range" min="0.02" max="0.8" step="0.02" value="' + t.ambientVol + '"' + CH('tSet', 'ambientVol') + '>' +
-    chk('autoBreak', 'Start breaks automatically') + chk('autoWork', 'Start the next focus round automatically after a break') + chk('notify', 'Desktop notifications') + chk('badge', 'Show minutes left on the toolbar icon') +
-    '<div class="s" style="margin-top:6px">The timer keeps running when this tab is closed. Shortcut: <code>Alt+Shift+F</code> starts or pauses it.</div></div>';
-  return '<div class="cols"><div>' + timerCard(true) + '<div class="card">' + presets + taskSel + quick + '</div>' + editor + '</div><div>' + statsCard(true) + blockCard() + sounds + '</div></div>';
+function focusPaneRow(id, title, summary, body) {
+  const open = focusPane === id;
+  return '<div class="acc' + (open ? ' open' : '') + '" data-key="' + id + '"><button class="achead" aria-expanded="' + open + '"' + C('fPane', id) + '><span class="t"><b>' + title + '</b><span class="s one">' + esc(summary) + '</span></span>' + ico('chev') + '</button><div class="acbody"><div class="acin"><div class="acpad">' + body + '</div></div></div></div>';
 }
-function statsCard(full) {
-  const by = focusTotals(), td = by[todayS] || { m: 0, x: 0, n: 0 };
-  const goal = st.cfg.goal || 90, pct = Math.min(100, Math.round(td.m / goal * 100));
-  const done = st.tasks.filter((t) => t.doneAt === todayS).length, sk = streak(by);
-  let week = '';
-  if (full) {
-    const days = []; const d = new Date(); d.setDate(d.getDate() - 6);
-    for (let i = 0; i < 7; i++) { days.push(iso(d)); d.setDate(d.getDate() + 1); }
-    const mx = Math.max(goal, ...days.map((ds) => (by[ds] ? by[ds].m : 0)));
-    const tot = days.reduce((a, ds) => a + (by[ds] ? by[ds].m : 0), 0);
-    week = '<h3 style="margin-top:14px">Last 7 days · ' + dur(tot) + '</h3><div class="wk">' + days.map((ds) => { const m = by[ds] ? by[ds].m : 0; return '<div class="' + (ds === todayS ? 'today' : '') + '"><b>' + (m ? m : '') + '</b><span class="b" style="height:' + Math.round(m / mx * 90) + '%"></span>' + DN[new Date(ds + 'T00:00:00').getDay()] + '</div>'; }).join('') + '</div>';
-    const byT = {};
-    st.focus.forEach((e) => { if (e.m && e.tid && e.d >= days[0]) byT[e.tid] = (byT[e.tid] || 0) + e.m; });
-    const tops = Object.keys(byT).sort((a, b) => byT[b] - byT[a]).slice(0, 4).filter((id) => taskName(+id));
-    if (tops.length) week += '<div class="s" style="margin-top:8px">Most focus this week: ' + tops.map((id) => esc(taskName(+id)) + ' (' + dur(byT[id]) + ')').join(', ') + '</div>';
-  }
-  return '<div class="card"><h3>Today</h3><div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">' + ring(pct, 72, 8) + '<div class="s">Focus goal<br><b style="font-size:18px;color:var(--ink)">' + td.m + ' / ' + goal + ' min' + (pct >= 100 ? ' 🎯' : '') + '</b></div></div>' +
-    '<div class="sum" style="margin:0"><div>Sessions<b>' + td.n + '</b></div><div>Tasks done<b>' + done + '</b></div><div>Streak<b>🔥 ' + sk + '</b></div></div>' +
-    (td.x ? '<div class="s" style="margin-top:8px">Distractions noticed: ' + td.x + '. Noticing is the skill.</div>' : '') + week + '</div>';
+function viewFocus() {
+  if (isZen()) return zenView();
+  const t = T(), open = sorted(st.tasks.filter((x) => !x.done && !x.inClass)), idle = timer.status === 'idle';
+  if (!focusTid && open[0]) { const ok = open.filter(workable); focusTid = (ok.length ? ok : open).slice().sort((a, b) => score(b) - score(a))[0].id; }
+  const curTid = idle ? focusTid : timer.tid;
+  const modes = '<div class="modes">' + t.presets.map((p) => '<button class="mode' + (t.presetId === p.id ? ' on' : '') + '" aria-pressed="' + (t.presetId === p.id) + '"' + C('fPreset', p.id) + '><b>' + esc(p.name) + '</b><span>' + p.work + ' / ' + p.short + ' min</span></button>').join('') + '</div>';
+  const taskSel = '<label class="lbl" for="ftask">Working on</label><select id="ftask"' + CH('fTask') + '><option value="0">Just focus (no task)</option>' + open.map((x) => '<option value="' + x.id + '"' + (x.id === curTid ? ' selected' : '') + '>' + esc(x.t) + (isBlocked(st, x) ? ' (can\'t start yet)' : '') + (x.d ? ' · due ' + niceDay(x.d) : '') + '</option>').join('') + '</select>';
+  const quick = '<div class="quiet fquick"><button class="tbtn"' + C('fStart', null, 5) + '>Just 5 min</button><button class="tbtn"' + C('fStart', null, 0, 'short') + '>Break now</button><span class="fcust"><input type="number" id="fcustom" min="1" max="240" inputmode="numeric" placeholder="Min" aria-label="Custom minutes"' + (t.lastCustom ? ' value="' + t.lastCustom + '"' : '') + EN('fStartSel') + '><button class="tbtn"' + C('fStartSel') + '>Start custom</button></span></div>';
+  const editor = '<div class="pgrid ph"><span>Name</span><span>Focus</span><span>Short</span><span>Long</span><span>Rounds</span><span></span></div>' +
+    t.presets.map((p, i) => '<div class="pgrid" data-key="' + esc(p.id) + '"><input value="' + esc(p.name) + '" aria-label="Timer name"' + CH('pSet', i, 'name') + '>' + [['work', 'Focus minutes'], ['short', 'Short break minutes'], ['long', 'Long break minutes'], ['rounds', 'Rounds']].map((k) => '<input type="number" min="1" max="240" inputmode="numeric" value="' + p[k[0]] + '" aria-label="' + k[1] + '"' + CH('pSet', i, k[0]) + '>').join('') + '<button class="iconbtn" aria-label="Delete ' + esc(p.name) + '"' + C('pDel', i) + '>' + ico('x') + '</button></div>').join('') +
+    '<div class="s pgap">Minutes for focus and breaks. A long break comes after every set of rounds.</div><div class="btnrow"><button class="btn sm sec"' + C('pAdd') + '>New timer</button><button class="btn sm mute"' + C('pReset') + '>Restore defaults</button></div>';
+  const sndSel = (key, label) => '<span class="lbl">' + label + '</span><div class="sndrow"><select aria-label="' + label + '"' + CH('tSet', key) + '>' + Object.keys(SOUNDS).map((k) => '<option value="' + k + '"' + (t[key] === k ? ' selected' : '') + '>' + SOUNDS[k] + '</option>').join('') + '</select><button class="iconbtn" aria-label="Preview"' + C('preview', key) + '>' + ico('play') + '</button></div>';
+  const chk = (key, label) => '<div class="check"><input type="checkbox" id="t_' + key + '"' + (t[key] ? ' checked' : '') + CH('tSet', key) + '><label for="t_' + key + '">' + label + '</label></div>';
+  const sounds = sndSel('endSound', 'When focus ends') + sndSel('breakSound', 'When a break ends') +
+    '<span class="lbl">Refocus nudge during focus</span><div class="row"><select aria-label="Refocus nudge"' + CH('tSet', 'refocus') + '>' + [[0, 'Off'], [5, 'Every 5 min'], [10, 'Every 10 min'], [15, 'Every 15 min'], [20, 'Every 20 min']].map((o) => '<option value="' + o[0] + '"' + (+t.refocus === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>' +
+    sndSel('refocusSound', 'Nudge sound') + chk('refocusNotify', 'Also show a "still with it?" pop-up') +
+    '<span class="lbl">Volume</span><input type="range" min="0" max="1" step="0.05" value="' + t.volume + '" aria-label="Volume"' + CH('tSet', 'volume') + '>' +
+    '<span class="lbl">Background noise while focusing</span><div class="sndrow"><select aria-label="Background noise"' + CH('tSet', 'ambient') + '>' + Object.keys(AMBIENT).map((k) => '<option value="' + k + '"' + (t.ambient === k ? ' selected' : '') + '>' + AMBIENT[k] + '</option>').join('') + '</select><button class="iconbtn" aria-label="Preview"' + C('previewAmb') + '>' + ico('play') + '</button></div>' +
+    '<span class="lbl">Noise volume</span><input type="range" min="0.02" max="0.8" step="0.02" value="' + t.ambientVol + '" aria-label="Noise volume"' + CH('tSet', 'ambientVol') + '>' +
+    chk('autoBreak', 'Start breaks automatically') + chk('autoWork', 'Start the next focus round automatically after a break') + chk('notify', 'Desktop notifications') + chk('badge', 'Show minutes left on the toolbar icon') +
+    '<div class="s" style="margin-top:6px">The timer keeps running when this tab is closed. Shortcut: <code>Alt+Shift+F</code> starts or pauses it.</div>';
+  const by = focusTotals(), td = by[todayS] || { m: 0 }, b = blockCfg();
+  const blockSum = !bridge.available() ? 'Needs the companion' : b.on ? 'On · ' + b.sites.length + ' site' + (b.sites.length === 1 ? '' : 's') : 'Off';
+  const soundSum = (SOUNDS[t.endSound] || 'Silent') + ' · ' + (t.ambient && t.ambient !== 'none' ? AMBIENT[t.ambient] : 'no background noise');
+  const head = idle ? '' : '<div class="hrow pgap"><span class="vstat">' + esc(timerHead().state) + ' · ' + roundText() + '</span><button class="tbtn"' + C('zenEnter') + '>' + ico('expand') + 'Back to zen</button></div>';
+  return '<div class="fgrid"><div class="card fmain">' + head + '<h1 class="vh">Focus</h1>' + timerDial() + timerControls() + modes + taskSel + (idle ? quick : '') + '</div>' +
+    '<div class="frail">' + focusPaneRow('stats', 'Progress', td.m + ' of ' + (st.cfg.goal || 90) + ' min today', statsBody()) +
+    focusPaneRow('block', 'Site blocking', blockSum, blockBody()) + focusPaneRow('sounds', 'Sounds and nudges', soundSum, sounds) +
+    focusPaneRow('timers', 'Your timers', t.presets.length + ' timer' + (t.presets.length === 1 ? '' : 's'), editor) + '</div></div>';
+}
+function todayLine(td, done, sk) {
+  return [td.n + ' session' + (td.n === 1 ? '' : 's'), done + ' task' + (done === 1 ? '' : 's') + ' done'].concat(sk ? [sk + '-day streak'] : []).join(' · ');
+}
+function todayBar() {
+  const by = focusTotals(), td = by[todayS] || { m: 0, x: 0, n: 0 }, goal = st.cfg.goal || 90;
+  const done = st.tasks.filter((t) => t.doneAt === todayS).length;
+  return '<div class="hrow"><h3>Today</h3><span class="s num">' + td.m + ' / ' + goal + ' min</span></div><div class="bar"><span style="width:' + Math.min(100, Math.round(td.m / goal * 100)) + '%"></span></div><div class="s">' + todayLine(td, done, streak(by)) + '</div>';
+}
+function statsBody() {
+  const by = focusTotals(), td = by[todayS] || { m: 0, x: 0, n: 0 }, goal = st.cfg.goal || 90;
+  const days = []; const d = new Date(); d.setDate(d.getDate() - 6);
+  for (let i = 0; i < 7; i++) { days.push(iso(d)); d.setDate(d.getDate() + 1); }
+  const mx = Math.max(goal, ...days.map((ds) => (by[ds] ? by[ds].m : 0)));
+  const tot = days.reduce((a, ds) => a + (by[ds] ? by[ds].m : 0), 0);
+  let week = '<h3 style="margin-top:16px">Last 7 days · ' + dur(tot) + '</h3><div class="wk">' + days.map((ds) => { const m = by[ds] ? by[ds].m : 0; return '<div class="' + (ds === todayS ? 'today' : '') + '"><b>' + (m ? m : '') + '</b><span class="b" style="height:' + Math.round(m / mx * 90) + '%"></span>' + DN[new Date(ds + 'T00:00:00').getDay()] + '</div>'; }).join('') + '</div>';
+  const byT = {};
+  st.focus.forEach((e) => { if (e.m && e.tid && e.d >= days[0]) byT[e.tid] = (byT[e.tid] || 0) + e.m; });
+  const tops = Object.keys(byT).sort((a, b) => byT[b] - byT[a]).slice(0, 4).filter((id) => taskName(+id));
+  if (tops.length) week += '<div class="s" style="margin-top:8px">Most focus this week: ' + tops.map((id) => esc(taskName(+id)) + ' (' + dur(byT[id]) + ')').join(', ') + '</div>';
+  return todayBar() + (td.x ? '<div class="s" style="margin-top:8px">Distractions noticed: ' + td.x + '. Noticing is the skill.</div>' : '') + week;
 }
 
 /* ---------- now ---------- */
@@ -1049,7 +1106,6 @@ function altPanel(curId) {
     (recOverride ? '<button class="pill" style="margin-top:10px"' + C('backToRec') + '>Back to the suggestion</button>' : '') + '</div>';
 }
 function welcomeCard() {
-  if (!st.tasks.length && !st.classes.length && !st.routines.length) return restoreCard(true);
   if (st.cfg.welcomed || (st.tasks.length && st.canvas.host)) return '';
   return '<div class="card welcome"><div class="hrow"><h3>👋 Welcome to Triaj</h3><button class="x"' + C('dismissWelcome') + '>×</button></div><ol>' +
     '<li><b>Bring your old data:</b> from the My Planner extension, More → Backups → Back up now (from the Claude artifact, AI tab → Download backup). Then here: More → Backups → Restore.</li>' +
@@ -1059,42 +1115,50 @@ function welcomeCard() {
     '<li><b>Turn on AI</b> (optional, free): <a class="lnk" href="#"' + C('go', 'ai') + '>AI tab → Get started with AI</a>.</li></ol></div>';
 }
 function viewNow() {
-  const n = new Date(), nm = n.getHours() * 60 + n.getMinutes(), h = n.getHours();
-  const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const n = new Date(), nm = n.getHours() * 60 + n.getMinutes();
   const busy = dayBusy(todayS), cur = busy.find((b) => b.s <= nm && nm < b.e), nxt = busy.find((b) => b.s > nm);
   const dayEnd = mn(dayCfg(todayS).de);
-  let gap = 0, head, sub, verdict = '';
+  let gap = 0, head, sub;
   if (cur) { head = (cur.kind === 'class' ? 'In class: ' : cur.kind === 'routine' ? 'Now: ' : 'Busy: ') + cur.title; sub = 'Ends at ' + tf(cur.e); }
-  else if (nm >= dayEnd) { head = 'Day wrapped up 🌙'; sub = 'Rest up. Tomorrow is planned in the Schedule tab.'; }
+  else if (nm >= dayEnd) { head = 'Day wrapped up'; sub = 'Tomorrow is planned in the Schedule tab'; }
   else { gap = (nxt ? nxt.s : dayEnd) - nm; head = 'Free for ' + dur(gap); sub = nxt ? 'Until ' + tf(nxt.s) + ' · ' + nxt.title : 'Nothing else scheduled today'; }
-  if (gap) verdict = gap < 25 ? 'Short gap. Good for a snack, a stretch, or a quick win.' : gap <= 60 ? 'Enough time for one focus round.' : 'Plenty of time: a couple of focus rounds with breaks.';
+  const status = '<div class="nowstat"><b>' + esc(head) + '</b><span>' + esc(sub) + '</span></div>';
   const focusOn = timer.status !== 'idle';
   const P = autoPlan(todayS), plan = (P.out[todayS] || []).filter((i) => i.e > nm);
   let rec = plan[0] ? plan[0].t : sorted(st.tasks.filter(workable))[0];
   if (recOverride) { const ov = st.tasks.find((t) => t.id === recOverride && !t.done); if (ov) rec = ov; }
   const pw = preset().work, fm = gap ? Math.min(pw, Math.max(5, gap - 5)) : pw;
-  let recHtml = '';
-  if (focusOn) recHtml = timerCard(false);
+  const fresh = !st.tasks.length && !st.classes.length && !st.routines.length;
+  let main;
+  if (focusOn) main = timerCard();
   else if (rec) {
     const qw = st.tasks.filter((t) => workable(t) && t.id !== rec.id && remaining(t) > 0 && remaining(t) <= 30).sort((a, b) => remaining(a) - remaining(b))[0];
-    recHtml = '<div class="card"><div class="s">' + (cur ? 'Up next after this' : 'Do this next') + '</div><div style="font-size:18px;font-weight:700;margin:4px 0">' + esc(rec.t) + '</div><div class="s">' + tag(rec) + (rec.d ? 'due ' + rec.d + ' · ' : '') + 'about ' + dur(remaining(rec) || need(rec)) + ' left' + (rec.url ? ' · <a class="lnk" href="' + esc(rec.url) + '" target="_blank" rel="noopener">Open in Canvas ↗</a>' : '') + (canvasRef(rec) ? ' · <a class="lnk" href="#"' + C('getFiles', rec.id) + '>📎 Get files</a>' : '') + '</div>' +
-      '<button class="btn" style="margin-top:10px"' + C('fStart', rec.id, fm === pw ? 0 : fm) + '>▶ Start ' + fm + ' min focus</button>' +
-      '<button class="btn sec" style="margin-top:8px"' + C('fStart', rec.id, 5) + '>Just 5 minutes</button>' +
-      '<button class="btn ghost" style="margin-top:8px"' + C('breakDown', rec.id) + '>I\'m stuck / don\'t know where to start</button>' +
-      '<button class="btn ghost" style="margin-top:8px"' + C('cantNow', rec.id) + '>🚧 Can\'t do this one yet</button>' +
-      '<button class="btn ghost" style="margin-top:8px"' + C('toggleAlt') + '>' + (showAlt ? 'Hide options' : '↻ Want to work on something else?') + '</button>' + altPanel(rec.id) +
-      (stuck && stuck.tid === rec.id ? '<div class="card" style="background:var(--soft);margin:8px 0 0">' + esc(stuck.text).replace(/\n/g, '<br>') + '</div>' : '') +
-      (qw ? '<div class="s" style="margin-top:8px">Quick win: <b>' + esc(qw.t) + '</b> (~' + dur(remaining(qw)) + ')</div>' : '') + '</div>';
-  } else recHtml = '<div class="card empty">Nothing to do right now. Add a task below, or enjoy the free time.</div>';
-  const rest = busy.filter((b) => b.e > nm).concat(plan).sort((a, b) => a.s - b.s).slice(0, 6).map((i) =>
-    '<div class="blk" style="border-left:5px solid ' + i.color + '"><div class="tm">' + tf(i.s) + '<br>' + tf(i.e) + '</div><div class="t">' + esc(i.title) + '<div class="s">' + ({ class: 'Class', work: 'Suggested study time', routine: 'Routine', event: 'Calendar', block: 'Your block' })[i.kind] + '</div></div></div>').join('');
-  return welcomeCard() + permCard() + backupBanner() + conflictsCard() + '<div class="cols"><div><div class="card hero"><div class="s">' + greet + ' · ' + tf(nm) + '</div><div style="font-size:22px;font-weight:700;margin:4px 0">' + esc(head) + '</div><div class="s">' + esc(sub) + '</div>' + (verdict ? '<div style="margin-top:8px">' + verdict + '</div>' : '') + '</div>' +
-    recHtml + '</div><div>' + suggestCard() + blockedCard() + statsCard(false) +
-    '<h3>Rest of today</h3>' + (rest || '<div class="empty">Nothing else scheduled.</div>') +
-    '<button class="pill" style="margin:4px 0 12px"' + C('openWeek') + '>See the full week →</button>' +
-    '<div class="card"><div class="row"><input id="qa" placeholder="Quick add a task..." style="margin:0"' + EN('quickAdd') + '><button class="btn" style="flex:none;width:auto;padding:10px 18px"' + C('quickAdd') + '>Add</button></div></div></div></div>';
+    main = '<div class="card nowcard">' + status + '<h1 class="nowt">' + esc(rec.t) + '</h1><div class="s nowmeta">' + tag(rec) + '<span' + (dueDays(rec) < 0 ? ' class="late"' : '') + '>' + reason(rec) + '</span><span>about ' + dur(remaining(rec) || need(rec)) + ' left</span>' + (rec.url ? '<a class="lnk" href="' + esc(rec.url) + '" target="_blank" rel="noopener">Open in Canvas ↗</a>' : '') + (canvasRef(rec) ? '<a class="lnk" href="#"' + C('getFiles', rec.id) + '>Get files</a>' : '') + '</div>' +
+      '<div class="tmain nowact"><button class="btn"' + C('fStart', rec.id, fm === pw ? 0 : fm) + '>' + ico('play') + 'Start ' + fm + ' min focus</button><button class="btn sec"' + C('fStart', rec.id, 5) + '>Just 5 min</button></div>' +
+      '<div class="quiet"><button class="tbtn"' + C('breakDown', rec.id) + '>I\'m stuck</button><button class="tbtn"' + C('cantNow', rec.id) + '>Can\'t do this yet</button><button class="tbtn"' + C('toggleAlt') + '>' + (showAlt ? 'Hide options' : 'Something else') + '</button></div>' + altPanel(rec.id) +
+      (stuck && stuck.tid === rec.id ? '<div class="card stuck">' + esc(stuck.text).replace(/\n/g, '<br>') + '</div>' : '') +
+      (qw ? '<div class="s nowq">Quick win: <b>' + esc(qw.t) + '</b> (~' + dur(remaining(qw)) + ')</div>' : '') + '</div>';
+  } else main = '<div class="card nowcard">' + status + emptyState(fresh ? 'Nothing planned yet' : 'Nothing to do right now', fresh ? 'Add your first task below, or connect Canvas and let your assignments come to you.' : 'Add a task below, or enjoy the free time.', fresh ? '<button class="btn sm sec"' + C('go', 'sync') + '>Connect Canvas</button>' : '', true) + '</div>';
+  const all = busy.filter((b) => b.e > nm).concat(plan).sort((a, b) => a.s - b.s);
+  const rest = all.slice(0, 3).map((i) => '<div class="drow"><span class="dot" style="background:' + i.color + '"></span><span class="tm">' + tf(i.s) + '</span><span class="t one" title="' + esc(i.title) + '">' + esc(i.title) + '</span></div>').join('');
+  const quick = '<div class="card qadd"><input id="qa" placeholder="Quick add a task" aria-label="Quick add a task"' + EN('quickAdd') + '><button class="btn sec"' + C('quickAdd') + '>Add</button></div>';
+  const later = '<div class="card"><div class="hrow"><h3>Rest of today</h3><button class="tbtn"' + C('openWeek') + '>Full week</button></div>' + (rest || '<div class="s">Nothing else scheduled.</div>') + (all.length > 3 ? '<div class="s dmore">+' + (all.length - 3) + ' more later today</div>' : '') + '</div>';
+  return (fresh ? '' : welcomeCard()) + canvasNotice() + backupBanner() + conflictsCard() + '<div class="cols mcols"><div>' + main + quick + later + '</div><div>' +
+    picksCard(focusOn ? (timer.tid || 0) : rec ? rec.id : 0, 2) + weekCard() + blockedNote() + '<div class="card">' + todayBar() + '</div>' + (fresh ? restoreCard(true) : '') + '</div></div>';
 }
 ACT.openWeek = () => { tab = 'sched'; sv = 'week'; render(); };
+ACT.openBlocked = () => { filter = 'blocked'; ACT.go('tasks'); };
+function blockedNote() {
+  const list = st.tasks.filter((t) => isBlocked(st, t));
+  if (!list.length) return '';
+  const checks = list.filter((t) => blockState(st, t).check).length;
+  return '<div class="notice"><i class="sd' + (checks ? ' warn' : '') + '"></i><div class="t">' + list.length + ' task' + (list.length === 1 ? '' : 's') + ' can\'t start yet' + (checks ? ' · ' + checks + ' need' + (checks === 1 ? 's' : '') + ' a quick check' : '') + '</div><button class="tbtn"' + C('openBlocked') + '>Review</button></div>';
+}
+// One calm line on Now; the fix itself lives in the Canvas panel under Sync.
+function canvasNotice() {
+  if (!st.canvas.host || canvasPerm !== false) return '';
+  return '<div class="notice"><i class="sd warn"></i><div class="t">Canvas sync is paused: your browser switched off access to ' + esc(st.canvas.host) + '.</div><button class="tbtn"' + C('go', 'sync') + '>Fix</button></div>';
+}
 
 /* ---------- budget, classes, more ---------- */
 function viewBudget() {
@@ -1150,7 +1214,7 @@ function dlState(f) {
 function fileRow(f, checked, act, extra) {
   const ok = !f.locked && !f.missing;
   return '<label class="item frow' + (ok ? '' : ' dim') + '"><input type="checkbox" style="width:auto;margin:0"' + (checked ? ' checked' : '') + (ok ? '' : ' disabled') + CH(act, f.id) + '>' +
-    '<span class="fic">' + (FT[f.type] || FT.other)[0] + '</span><div class="t">' + esc(f.name) + '<div class="s">' + (fmtSize(f.size) ? fmtSize(f.size) + ' · ' : '') + esc(f.from || '') +
+    '<span class="fic">' + ico('file') + '</span><div class="t">' + esc(f.name) + '<div class="s">' + (fmtSize(f.size) ? fmtSize(f.size) + ' · ' : '') + esc(f.from || '') +
     (f.locked ? ' <span class="chip lock">🔒 locked</span>' : '') + (f.missing ? ' <span class="chip bad">not available to you</span>' : '') + ' ' + dlState(f) + (extra || '') + '</div></div>' +
     (f.page ? '<a class="lnk" href="' + esc(f.page) + '" target="_blank" rel="noopener" title="Open in Canvas">↗</a>' : '') + '</label>';
 }
@@ -1285,49 +1349,62 @@ ACT.fxDownload = () => {
     toast(fx.result.failed.length ? 'Done, with ' + fx.result.failed.length + ' problem(s)' : 'Saved ' + fx.result.ok + ' files');
   });
 };
+ACT.fxClear = () => { fx.q = ''; fx.filter = 'all'; render(); };
+// A course with nothing to show says why, and what you can still do about it.
+function fxNothing(d) {
+  const open = '<a class="btn sm sec" href="https://' + esc(st.canvas.host) + '/courses/' + esc(fx.cid) + '" target="_blank" rel="noopener">Open course in Canvas ↗</a><button class="btn sm mute"' + C('fxReload') + '>Check again</button>';
+  if (!d.modulesOk && !d.filesOk) return emptyState('This course keeps its files private', courseCode(fx.cid) + ' hides its modules and Files area from students, so Triaj can only find files linked from the syllabus and assignments. None are linked yet. Anything your instructor posts on those pages will show up here.', open);
+  return emptyState('No files here yet', 'Nothing has been posted in ' + courseCode(fx.cid) + '\'s modules, pages or assignments so far. Check back after the next class.', open);
+}
 function viewFiles() {
-  if (!st.canvas.host) return '<div class="card hero"><h3>📚 Canvas files</h3><div class="s" style="margin-bottom:10px">Connect Canvas first, then you can download course files and project resources into folders.</div><button class="btn" style="background:#fff;color:#1c1c22"' + C('go', 'sync') + '>Connect Canvas</button></div>';
+  if (!st.canvas.host) return '<div class="card">' + emptyState('Connect Canvas to get your course files', 'Once Canvas is connected, you can download course files and project resources into tidy folders.', '<button class="btn sm"' + C('go', 'sync') + '>Connect Canvas</button>') + '</div>';
   const courses = st.canvas.courses || [];
   const soon = sorted(st.tasks.filter((t) => !t.done && canvasRef(t) && t.d && t.d >= todayS)).slice(0, 6);
-  const pills = '<div class="presets" style="justify-content:flex-start">' + courses.map((c) => '<button class="pill' + (fx.cid === c.id ? ' on' : '') + '"' + C('fxCourse', c.id) + '>' + esc(c.code) + '</button>').join('') + '</div>';
+  const pills = '<div class="presets lefted">' + courses.map((c) => '<button class="pill' + (fx.cid === c.id ? ' on' : '') + '" title="' + esc(c.name || c.code) + '"' + C('fxCourse', c.id) + '>' + esc(shortCourse(c.code)) + '</button>').join('') + '</div>';
   let browser = '';
   if (fx.cid) {
-    if (fx.loading) browser = '<div class="stbox info"><b>⏳ ' + esc(fx.prog) + '</b><div class="s">Big courses can take 10–30 seconds the first time.</div></div>';
-    else if (fx.err) browser = '<div class="stbox err"><b>❌ ' + esc(fx.err) + '</b><div class="btnrow" style="margin-top:8px"><button class="btn sm"' + C('fxReload') + '>Retry</button></div></div>';
+    if (fx.loading) browser = '<div class="stbox info"><b>' + esc(fx.prog) + '</b><div class="s">Big courses can take 10–30 seconds the first time.</div></div>';
+    else if (fx.err) browser = emptyState('Couldn\'t read this course', fx.err, '<button class="btn sm sec"' + C('fxReload') + '>Try again</button><button class="btn sm mute"' + C('go', 'sync') + '>Check Canvas sync</button>');
     else if (fx.data) {
       const allF = [];
       fx.data.groups.forEach((g) => g.files.forEach((f) => allF.push(f)));
       const uniq = new Set(allF.map((f) => f.id));
-      const counts = {};
-      allF.forEach((f) => { counts[f.type] = (counts[f.type] || 0) + 1; });
-      const types = '<div class="conf-row" style="margin:8px 0"><button class="pill' + (fx.filter === 'all' ? ' on' : '') + '"' + C('fxFilter', 'all') + '>All (' + uniq.size + ')</button>' +
-        Object.keys(FT).filter((k) => counts[k]).map((k) => '<button class="pill' + (fx.filter === k ? ' on' : '') + '"' + C('fxFilter', k) + '>' + FT[k][0] + ' ' + FT[k][1] + ' (' + counts[k] + ')</button>').join('') + '</div>';
-      const groups = fx.data.groups.map((g, gi) => {
-        const vis = g.files.filter(fxVisible), selectable = vis.filter(fxOk);
-        if (!vis.length && !(g.links.length && fx.filter === 'all' && !fx.q)) return '';
-        const nsel = selectable.filter((f) => fx.sel.has(f.id)).length;
-        const all = selectable.length && nsel === selectable.length;
-        return '<div class="fgroup"><div class="fghead"><input type="checkbox" style="width:auto;margin:0"' + (all ? ' checked' : '') + (selectable.length ? '' : ' disabled') + CH('fxGroup', gi) + '>' +
-          '<b' + C('fxToggle', gi) + ' style="cursor:pointer;flex:1">' + (fx.closed[gi] ? '▸ ' : '▾ ') + esc(g.name) + '</b><span class="s">' + (nsel ? nsel + ' of ' : '') + vis.length + ' file' + (vis.length === 1 ? '' : 's') + '</span></div>' +
-          (fx.closed[gi] ? '' : vis.map((f) => fileRow(f, fx.sel.has(f.id), 'fxPick')).join('') +
-            (fx.filter === 'all' && !fx.q ? g.links.map((l) => '<div class="item frow dim"><span class="fic">🔗</span><div class="t">' + esc(l.name) + '<div class="s">Website link, not a file</div></div><a class="lnk" href="' + esc(l.url) + '" target="_blank" rel="noopener">↗</a></div>').join('') : '')) + '</div>';
-      }).join('');
-      const selFiles = allF.filter((f, i, a) => fx.sel.has(f.id) && a.findIndex((x) => x.id === f.id) === i);
-      const mb = selFiles.reduce((a, f) => a + (f.size || 0), 0);
-      browser = '<div class="hrow"><input id="fxq" placeholder="Search files, e.g. midterm, week 5, lecture" style="margin:0" value="' + esc(fx.q) + '"' + on('input', 'fxQ') + '><button class="btn sm sec"' + C('fxReload') + '>↻</button></div>' + types +
-        '<div class="conf-row" style="margin-bottom:8px"><span class="s" style="align-self:center">Select:</span><button class="pill"' + C('fxSel', 'all') + '>All shown</button><button class="pill"' + C('fxSel', 'new') + '>New or updated</button><button class="pill"' + C('fxSel', 'none') + '>None</button></div>' +
-        (groups || '<div class="empty">No files match.</div>') +
-        (!fx.data.modulesOk && !fx.data.filesOk ? '<div class="s">This course hides its modules and files from students, so only files linked from the syllabus could be found.</div>' : '') +
-        '<div class="dlbar"><div class="t"><b>' + selFiles.length + ' selected</b>' + (mb ? ' · ' + fmtSize(mb) : '') + '<div class="check" style="margin:2px 0 0"><input type="checkbox" id="fxbm"' + (fx.byModule ? ' checked' : '') + CH('fxByModule') + '><label for="fxbm" class="s">A folder per module</label></div></div>' +
-        '<button class="btn" style="width:auto;margin:0"' + C('fxDownload') + (selFiles.length && !fx.busy ? '' : ' disabled') + '>' + (fx.busy ? esc(fx.dprog) : '⬇ Download') + '</button></div>' + resultBox(fx.result);
+      const hasLinks = fx.data.groups.some((g) => g.links.length);
+      if (!uniq.size && !hasLinks) browser = fxNothing(fx.data);
+      else {
+        const counts = {};
+        allF.forEach((f) => { counts[f.type] = (counts[f.type] || 0) + 1; });
+        const kinds = Object.keys(FT).filter((k) => counts[k]);
+        const types = kinds.length > 1 ? '<div class="conf-row fxtypes"><button class="pill' + (fx.filter === 'all' ? ' on' : '') + '"' + C('fxFilter', 'all') + '>All (' + uniq.size + ')</button>' +
+          kinds.map((k) => '<button class="pill' + (fx.filter === k ? ' on' : '') + '"' + C('fxFilter', k) + '>' + FT[k][1] + ' (' + counts[k] + ')</button>').join('') + '</div>' : '';
+        const groups = fx.data.groups.map((g, gi) => {
+          const vis = g.files.filter(fxVisible), selectable = vis.filter(fxOk);
+          if (!vis.length && !(g.links.length && fx.filter === 'all' && !fx.q)) return '';
+          const nsel = selectable.filter((f) => fx.sel.has(f.id)).length;
+          const all = selectable.length && nsel === selectable.length;
+          return '<div class="fgroup"><div class="fghead"><input type="checkbox" style="width:auto;margin:0" aria-label="Select all in ' + esc(g.name) + '"' + (all ? ' checked' : '') + (selectable.length ? '' : ' disabled') + CH('fxGroup', gi) + '>' +
+            '<b' + C('fxToggle', gi) + ' style="cursor:pointer;flex:1">' + (fx.closed[gi] ? '▸ ' : '▾ ') + esc(g.name) + '</b><span class="s">' + (nsel ? nsel + ' of ' : '') + vis.length + ' file' + (vis.length === 1 ? '' : 's') + '</span></div>' +
+            (fx.closed[gi] ? '' : vis.map((f) => fileRow(f, fx.sel.has(f.id), 'fxPick')).join('') +
+              (fx.filter === 'all' && !fx.q ? g.links.map((l) => '<div class="item frow dim"><span class="fic">' + ico('link') + '</span><div class="t">' + esc(l.name) + '<div class="s">Website link, not a file</div></div><a class="lnk" href="' + esc(l.url) + '" target="_blank" rel="noopener">↗</a></div>').join('') : '')) + '</div>';
+        }).join('');
+        const selFiles = allF.filter((f, i, a) => fx.sel.has(f.id) && a.findIndex((x) => x.id === f.id) === i);
+        const mb = selFiles.reduce((a, f) => a + (f.size || 0), 0);
+        const filtered = fx.q || fx.filter !== 'all';
+        browser = '<div class="hrow"><input id="fxq" placeholder="Search files, e.g. midterm, week 5, lecture" aria-label="Search files" style="margin:0" value="' + esc(fx.q) + '"' + on('input', 'fxQ') + '><button class="iconbtn" aria-label="Reload this course"' + C('fxReload') + '>' + ico('reload') + '</button></div>' + types +
+          (groups ? (uniq.size ? '<div class="conf-row fxsel"><span class="s">Select:</span><button class="tbtn"' + C('fxSel', 'all') + '>All shown</button><button class="tbtn"' + C('fxSel', 'new') + '>New or updated</button><button class="tbtn"' + C('fxSel', 'none') + '>None</button></div>' : '') + groups :
+            emptyState(fx.q ? 'Nothing matches “' + fx.q + '”' : 'No files of that type', 'This course has ' + uniq.size + ' file' + (uniq.size === 1 ? '' : 's') + ' in total.', filtered ? '<button class="btn sm sec"' + C('fxClear') + '>Show all files</button>' : '')) +
+          (!fx.data.modulesOk && !fx.data.filesOk ? '<div class="s fxnote">This course hides its modules and files from students, so only files linked from the syllabus could be found.</div>' : '') +
+          (uniq.size ? '<div class="dlbar"><div class="t"><b>' + selFiles.length + ' selected</b>' + (mb ? ' · ' + fmtSize(mb) : '') + '<div class="check" style="margin:2px 0 0"><input type="checkbox" id="fxbm"' + (fx.byModule ? ' checked' : '') + CH('fxByModule') + '><label for="fxbm" class="s">A folder per module</label></div></div>' +
+          '<button class="btn" style="width:auto;margin:0"' + C('fxDownload') + (selFiles.length && !fx.busy ? '' : ' disabled') + '>' + (fx.busy ? esc(fx.dprog) : 'Download') + '</button></div>' : '') + resultBox(fx.result);
+      }
     }
-  }
+  } else if (courses.length) browser = '<div class="s fxnote">Pick a course to see its files.</div>';
   return '<div class="cols mcols"><div>' + projCard() +
-    '<div class="card"><h3>📚 Browse a course</h3><div class="s">Pick a course to see every file in its modules, pages, assignments, syllabus and Files area. Tick what you want and it downloads into Downloads/Canvas/&lt;course&gt;/&lt;module&gt;/.</div>' +
-    (courses.length ? pills : '<div class="empty">Sync Canvas once to list your courses.</div>') + browser + '</div></div>' +
-    '<div><div class="card"><h3>📎 Project files</h3><div class="s" style="margin-bottom:6px">Grab everything for one assignment: files linked in its instructions plus the rest of its module. Also on any Canvas task via the 📎 button.</div>' +
-    (soon.length ? soon.map((t) => '<div class="item"><div class="t">' + esc(t.t) + '<div class="s">' + tag(t) + niceDay(t.d) + '</div></div><button class="btn sm sec"' + C('getFiles', t.id) + '>📎 Get files</button></div>').join('') : '<div class="empty" style="padding:8px">No upcoming Canvas assignments.</div>') +
-    '</div><div class="card"><div class="s">Files go to your Downloads folder under <b>Canvas</b>. Downloading again overwrites the old copy, so updated lecture notes replace stale ones. Files marked ✓ were downloaded before; <b>New or updated</b> selects only what changed.</div></div></div></div>';
+    '<div class="card"><h3>Browse a course</h3><div class="s">Every file in a course\'s modules, pages, assignments, syllabus and Files area. Tick what you want and it downloads into Downloads/Canvas/&lt;course&gt;/&lt;module&gt;/.</div>' +
+    (courses.length ? pills : emptyState('No courses yet', 'Sync Canvas once and your courses will be listed here.', '<button class="btn sm sec"' + C('syncNow', 'canvas') + (syncBusy || syncState.running ? ' disabled' : '') + '>' + (syncBusy || syncState.running ? 'Syncing…' : 'Sync now') + '</button>')) + browser + '</div></div>' +
+    '<div><div class="card"><h3>Project files</h3><div class="s pgap">Grab everything for one assignment: files linked in its instructions plus the rest of its module.</div>' +
+    (soon.length ? soon.map((t) => '<div class="item"><div class="t">' + esc(t.t) + '<div class="s">' + tag(t) + niceDay(t.d) + '</div></div><button class="btn sm sec"' + C('getFiles', t.id) + '>Get files</button></div>').join('') : '<div class="s">No upcoming Canvas assignments. Their files will be one click away here when one is due.</div>') +
+    '</div><div class="card"><div class="s">Files go to your Downloads folder under <b>Canvas</b>. Downloading again overwrites the old copy, so updated lecture notes replace stale ones. <b>New or updated</b> selects only what changed.</div></div></div></div>';
 }
 
 /* ---------- sync ---------- */
@@ -1541,15 +1618,15 @@ function viewSync() {
   const cv = st.canvas;
   let canvas;
   if (!cv.host) {
-    canvas = '<div class="card hero"><h3>🔄 Connect Canvas</h3><div class="s" style="margin-bottom:10px">One-time setup. After this, new assignments, quizzes and changed due dates arrive on their own, and things you submit get checked off.</div>' +
+    canvas = '<div class="card"><h3>Connect Canvas</h3><div class="s pgap">One-time setup. After this, new assignments, quizzes and changed due dates arrive on their own, and things you submit get checked off.</div>' + (bridge.available() ? '' : companionHelp(true)) +
       '<input id="cvh" placeholder="Your Canvas address, e.g. canvas.ubc.ca"' + EN('connectCanvas') + '>' +
-      '<details style="margin-bottom:8px"><summary class="s" style="color:#fff">Optional: access token (keeps sync working when you are signed out)</summary><input id="cvt" type="password" placeholder="Paste a Canvas access token" style="margin-top:8px"><div class="s">In Canvas: Account → Settings → <b>New access token</b>. It is saved to your account so sync works from any of your computers.</div></details>' +
-      '<button class="btn" style="background:#fff;color:#1c1c22"' + C('connectCanvas') + '>Connect</button><div class="s" style="margin-top:8px">The Triaj companion extension will ask to let Triaj read that site. Without a token, you just need to be signed in to Canvas in this browser.</div></div>';
+      '<details style="margin-bottom:8px"><summary class="s">Optional: access token (keeps sync working when you are signed out)</summary><input id="cvt" type="password" placeholder="Paste a Canvas access token" style="margin-top:8px"><div class="s">In Canvas: Account → Settings → <b>New access token</b>. It is saved to your account so sync works from any of your computers.</div></details>' +
+      '<button class="btn"' + C('connectCanvas') + '>Connect</button><div class="s" style="margin-top:8px">The Triaj companion will ask to let Triaj read that site. Without a token, you just need to be signed in to Canvas in this browser.</div></div>';
   } else {
     const ex = cv.excluded || [];
     const courses = (cv.courses || []).map((c) => '<div class="check"><input type="checkbox" id="cc_' + esc(c.id) + '"' + (ex.indexOf(c.id) < 0 ? ' checked' : '') + CH('cvCourse', c.id) + '><label for="cc_' + esc(c.id) + '">' + esc(c.code) + '<span class="s"> ' + esc(c.name !== c.code ? c.name : '') + '</span></label></div>').join('');
     const chk = (k, l) => '<div class="check"><input type="checkbox" id="cv_' + k + '"' + (cv[k] ? ' checked' : '') + CH('cvSet', k) + '><label for="cv_' + k + '">' + l + '</label></div>';
-    canvas = permCard() + '<div class="card"><div class="hrow"><h3>🔄 Canvas · ' + esc(cv.host) + '</h3><button class="btn sm"' + C('syncNow', 'canvas') + (syncBusy || syncState.running ? ' disabled' : '') + '>' + (syncBusy || syncState.running ? 'Syncing…' : 'Sync now') + '</button></div>' + liveStatus(cv.lastStatus) +
+    canvas = '<div class="card"><div class="hrow"><h3>Canvas · ' + esc(cv.host) + '</h3><button class="btn sm"' + C('syncNow', 'canvas') + (syncBusy || syncState.running ? ' disabled' : '') + '>' + (syncBusy || syncState.running ? 'Syncing…' : 'Sync now') + '</button></div>' + liveStatus(cv.lastStatus) + (canvasPerm === false ? permCard() : companionRow()) +
       '<details style="margin-top:10px"><summary>Sync settings</summary>' + chk('auto', 'Sync automatically in the background') +
       '<span class="lbl">How often</span><select' + CH('cvSet', 'interval') + '>' + [[15, 'Every 15 minutes'], [30, 'Every 30 minutes'], [60, 'Every hour'], [180, 'Every 3 hours'], [360, 'Every 6 hours']].map((o) => '<option value="' + o[0] + '"' + (+cv.interval === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
       '<h3 style="margin-top:10px">What to bring in</h3>' + chk('assign', 'Everything on your Canvas To-Do list (assignments, quizzes, ungraded to-dos, peer reviews)') + chk('modReq', 'Required module items without a date (readings, videos)') + chk('modOther', 'Optional module items') +
@@ -1564,7 +1641,7 @@ function viewSync() {
   const feedCard = '<div class="card"><h3>📆 Calendar feeds</h3><div class="s" style="margin-bottom:8px">Any calendar with an iCal link: Google Calendar (Settings → your calendar → <b>Secret address in iCal format</b>), Outlook, your work schedule, a club calendar. Choose <b>Busy time</b> so study blocks are planned around those events, or <b>Tasks</b> to turn each event into a to-do. (Canvas calendar events like exams already come in with Canvas sync.)</div>' +
     (feeds || '<div class="empty" style="padding:8px">No feeds yet.</div>') +
     '<input id="fn" placeholder="Name (e.g. Work shifts)"><input id="fu" placeholder="https://… or webcal://… link ending in .ics"><div class="row"><select id="ft"><option value="events">Busy time</option><option value="tasks">Tasks</option></select><select id="fc">' + classOpts(0) + '</select></div><button class="btn"' + C('addFeed') + '>Add calendar</button></div>';
-  return '<div class="cols"><div>' + (bridge.available() ? '' : isPhone() ? companionHelp(true) : canvasPerm === 'noext' ? '' : companionHelp(false)) + canvas + '</div><div>' + sylCard() + feedCard + '<div class="card"><div class="s">Canvas and calendars sync while Triaj is open in a browser with the companion extension: right when you open it, then on your schedule. What it finds reaches all your devices through your account' + (session.user ? '' : ' (sign in to turn that on)') + '.</div></div></div></div>';
+  return '<div class="cols"><div>' + canvas + '</div><div>' + sylCard() + feedCard + '<div class="card"><div class="s">Canvas and calendars sync while Triaj is open in a browser with the companion extension: right when you open it, then on your schedule. What it finds reaches all your devices through your account' + (session.user ? '' : ' (sign in to turn that on)') + '.</div></div></div></div>';
 }
 
 /* ---------- manual import ---------- */
@@ -1624,7 +1701,10 @@ function viewImport() {
 
 /* ---------- settings ---------- */
 function sysDark() { try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } }
-function applyTheme() { applyThemeVars(document.documentElement, st.cfg.theme, st.cfg.mode, sysDark()); }
+function applyTheme() {
+  const v = applyThemeVars(document.documentElement, st.cfg.theme, st.cfg.mode, sysDark());
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = v.bg;
+}
 try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) {}
 function daysLabel(d) {
   const a = d.slice().sort().join();
@@ -2023,22 +2103,29 @@ function renderMini() {
   if (timer.status === 'idle' || tab === 'focus' || (tab === 'now')) { m.innerHTML = ''; return; }
   const brk = timer.phase !== 'work';
   const name = brk ? LABEL[timer.phase] : (taskName(timer.tid) || 'Focus');
-  m.innerHTML = '<div class="minibar' + (brk ? ' brk' : '') + '"' + C('go', 'focus') + '>⏱ <b id="ftime2">' + (timer.status === 'ready' ? 'Next: ' + LABEL[timer.phase] : fmtT(tLeft())) + '</b><span class="tt">' + esc(name) + '</span>' +
-    (timer.status === 'running' ? '<button' + C('fOp', 'pause') + '>❚❚</button>' : timer.status === 'paused' ? '<button' + C('fOp', 'resume') + '>▶</button>' : '<button' + C('fOp', 'start') + '>▶</button>') + '</div>';
+  m.innerHTML = '<div class="minibar' + (brk ? ' brk' : '') + '"' + C('go', 'focus') + '><b id="ftime2">' + (timer.status === 'ready' ? 'Next: ' + LABEL[timer.phase] : fmtT(tLeft())) + '</b><span class="tt">' + esc(name) + '</span>' +
+    (timer.status === 'running' ? '<button aria-label="Pause"' + C('fOp', 'pause') + '>' + ico('pause') + '</button>' : '<button aria-label="Resume"' + C('fOp', timer.status === 'paused' ? 'resume' : 'start') + '>' + ico('play') + '</button>') + '</div>';
 }
 function renderSyncLabel() {
   const cv = st.canvas;
-  const t = !cv.host ? (session.user ? '☁ saved to your account' : 'saved in this browser') : canvasPerm === false ? '🔑 Canvas access needed' : (cv.lastStatus && cv.lastStatus.kind === 'err') ? '⚠ Canvas sync problem' : '☁ Canvas synced ' + ago(cv.lastSync);
-  const e = $('sync'); if (e) e.textContent = syncState.running ? '⏳ ' + (syncState.text || 'Syncing…') : syncBusy ? 'Syncing…' : t;
+  const t = !cv.host ? (session.user ? 'Saved to your account' : 'Saved in this browser') : canvasPerm === false ? 'Canvas access needed' : (cv.lastStatus && cv.lastStatus.kind === 'err') ? 'Canvas sync problem' : 'Canvas synced ' + ago(cv.lastSync);
+  const e = $('sync'); if (e) e.textContent = syncState.running ? (syncState.text || 'Syncing…') : syncBusy ? 'Syncing…' : t;
 }
+// Words carry these; the emoji in front of them only added noise.
+const EMOJI = '(?:[\\p{Extended_Pictographic}\\u2190-\\u21FF\\u2600-\\u27BF][\\uFE0F\\u200D]?)+';
+const NOEMOJI_LEAD = new RegExp('(<h3[^>]*>|<div class="stbox[^"]*"[^>]*><b>|<span class="chip[^"]*"[^>]*>)' + EMOJI + '\\s*', 'gu');
+const NOEMOJI_BTN = new RegExp('(<(?:button|a)\\b[^>]*>)' + EMOJI + '\\s+(?=[^<\\s])', 'gu');
+const MORPHED = ['now', 'focus', 'files'];
 function render() {
   if (!ready) return;
   todayS = iso(new Date());
   document.querySelectorAll('nav button').forEach((b) => { const t = b.dataset.t; b.classList.toggle('on', t === tab || (t === 'more' && SUB.indexOf(tab) > -1)); });
   const V = { backup: viewBackup, files: viewFiles, now: viewNow, sched: viewSched, tasks: viewTasks, focus: viewFocus, ai: viewAI, more: viewMore, budget: viewBudget, classes: viewClasses, settings: viewSettings, sync: viewSync, import: viewImport, export: viewExport };
   const back = SUB.indexOf(tab) > -1 ? '<button class="backbtn"' + C('go', 'more') + '>More</button>' : '';
-  const vw = $('view'), y = window.scrollY;
-  vw.innerHTML = (back + (V[tab] || viewNow)()).replace(/(<h3[^>]*>)(?:[\p{Extended_Pictographic}\u2190-\u21FF\u2600-\u27BF][\uFE0F\u200D]?)+\s*/gu, '$1') + '<footer>Triaj · ' + (session.user ? 'synced to your account' : 'saved in this browser') + ' · <a class="lnk" href="#"' + C('go', 'sync') + '>sync settings</a></footer>';
+  const vw = $('view'), y = window.scrollY, zen = isZen();
+  document.body.classList.toggle('zen-on', zen);
+  const html = (back + (V[tab] || viewNow)()).replace(NOEMOJI_LEAD, '$1').replace(NOEMOJI_BTN, '$1') + (zen ? '' : '<footer>Triaj · ' + (session.user ? 'synced to your account' : 'saved in this browser') + ' · <a class="lnk" href="#"' + C('go', 'sync') + '>sync settings</a></footer>');
+  if (tab === lastTab && MORPHED.indexOf(tab) > -1) morph(vw, html); else vw.innerHTML = html;
   if (tab !== lastTab) { vw.classList.remove('fade'); void vw.offsetWidth; vw.classList.add('fade'); } else window.scrollTo(0, y);
   lastTab = tab;
   renderMini(); renderSyncLabel();

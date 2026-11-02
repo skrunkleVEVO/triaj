@@ -25,6 +25,7 @@ web/                     GitHub Pages site (no build step, plain ES modules)
   app/                   the app
     boot.js              account → local data → planner + engine
     app.js               planner UI
+    lib/morph.js         re-renders Now, Focus and Files in place, so transitions run and focus survives
     lib/platform.js      storage (IndexedDB, shared across tabs), alarms, notifications, permissions
     lib/cloud.js         Firebase Auth + Firestore sync
     lib/engine.js        timer, Canvas/calendar sync schedule, digests, backups
