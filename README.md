@@ -13,7 +13,7 @@
 - **Site blocking during focus.** List the sites that pull you away; while a focus round runs the companion swaps them for a "back to focus" page with your timer (5-minute passes allowed). Breaks are free.
 - **AI that suggests, you decide.** Weekly planning, tasks from a sentence, exam dates from syllabus PDFs, "I'm stuck" first steps. Bring your own key (free with Gemini, or Claude). Nothing changes until you press Apply.
 - **Everywhere.** Sign in with Google or email and the planner syncs live between every browser and device. Installable as an app on phones (PWA) and usable offline.
-- Also: prerequisites and "can't do this yet", in-class tests, iCal feeds, course-file downloads into tidy folders, budget, 7 themes × light/dark/black (all WCAG AA), backups and one-click undo, and an "Export for AI" plain-text dump.
+- Also: prerequisites and "can't do this yet", in-class tests, iCal feeds, course-file downloads into tidy folders, budget, a paper-notebook look with 8 pen colors × light/dark/black (all WCAG AA) and dotted, ruled, grid or blank paper, backups and one-click undo, and an "Export for AI" plain-text dump.
 
 ## How it's built
 

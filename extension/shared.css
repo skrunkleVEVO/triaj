@@ -1,29 +1,35 @@
 @import url("fonts/fonts.css");
-:root{--bg:#f6f7fb;--card:#fff;--ink:#1c1c22;--mute:#5b5e67;--line:#d9dde7;--soft:#ebeef7;--pri:#1d2f6f;--onpri:#fff;--ok:#15803d;--bad:#b42318;
-  --hdr:#141d3d;--now:#c62f34;--soon:#9a6a00;--later:#127a66;--field:#fff;
-  --display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;--read:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1424;--card:#151c31;--ink:#ececf1;--mute:#a7aec2;--line:#283252;--soft:#1f2945;--pri:#9db4ff;--onpri:#0c1430;--ok:#4ade80;--bad:#f87171;
-  --hdr:#0c1122;--now:#ff7a7e;--soon:#f5c04a;--later:#4fd1b5;--field:#0f1528}}
+/* Triaj companion: the same paper notebook as the app. Paper ground, white sheets, ballpoint pen for actions,
+   highlighters (pink, yellow, mint) for now, soon and later. Caveat for titles, Atkinson for everything else.
+   The popup takes the app's live theme colors (popup.js); these are the defaults. */
+:root{--bg:#f5f3ee;--card:#fffefb;--ink:#1b2233;--mute:#545b6c;--line:#e2ded5;--soft:#e9edf8;--pri:#2546b0;--onpri:#fff;--ok:#2f7a3a;--bad:#b42318;
+  --hdr:#f5f3ee;--now:#bf2b3f;--soon:#8f6200;--later:#16765f;--field:#fffefb;--grid:#cfd8ee;
+  --hlnow:#ffc2d3;--hlsoon:#ffe680;--hllater:#bdeed0;--hlink:#1b2233;
+  --display:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif;--read:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif;--hand:"Caveat","Segoe Print",cursive}
+@media (prefers-color-scheme:dark){:root{--bg:#16171b;--card:#1f2127;--ink:#eceae4;--mute:#b0b3bd;--line:#33363f;--soft:#262b38;--pri:#93abff;--onpri:#121418;--ok:#7fd88d;--bad:#f87171;
+  --hdr:#16171b;--now:#ff8a98;--soon:#f5c04a;--later:#5fd6b6;--field:#1a1c21;--grid:#2a2e38;--hlnow:#6e2a3d;--hlsoon:#5c4b10;--hllater:#1d5a40;--hlink:#f3f1ec}}
 *{box-sizing:border-box}
-body{margin:0;font-family:var(--read);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
-.head{background:var(--hdr);color:#fff;padding:11px 14px;display:flex;align-items:center;gap:9px;font:800 16px var(--display);font-stretch:106%}
+body{margin:0;font-family:var(--read);background-color:var(--bg);background-image:radial-gradient(circle at 1px 1px,var(--grid) 1.2px,transparent 1.5px);background-size:20px 20px;color:var(--ink);font-size:14px;line-height:1.45}
+.head{background:var(--bg);color:var(--ink);padding:10px 14px;display:flex;align-items:center;gap:9px;font:700 26px/1 var(--hand);border-bottom:1px solid var(--line)}
 .head img{border-radius:5px}
 .head .sp{flex:1}
-.head button{font:700 12px var(--display);background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:5px 11px;cursor:pointer}
-.head button:hover{background:rgba(255,255,255,.1)}
-.main{padding:10px 12px 4px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:9px}
+.head button{font:700 12px var(--display);background:var(--pri);color:var(--onpri);border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
+.head button:hover{background:color-mix(in srgb,var(--pri) 86%,var(--ink))}
+.main{padding:12px 12px 4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px}
 .s{font-size:12px;color:var(--mute)}
-h1,h2,b.t{font-family:var(--display)}
-.b{display:block;width:100%;border:0;border-radius:9px;padding:9px;font:700 13px var(--display);background:var(--pri);color:var(--onpri);cursor:pointer}
-.b:hover{background:color-mix(in srgb,var(--pri) 86%,#000)}
+h1,h2{font-family:var(--hand);font-weight:700}
+b.t{font-family:var(--display)}
+.b{display:block;width:100%;border:0;border-radius:999px;padding:9px;font:700 13px var(--display);background:var(--pri);color:var(--onpri);cursor:pointer;transition:transform 120ms cubic-bezier(.23,1,.32,1),background-color 150ms ease}
+.b:hover{background:color-mix(in srgb,var(--pri) 86%,var(--ink))}
+.b:active{transform:scale(.97)}
 .b.sec{background:var(--soft);color:var(--ink)}
 .b.mute{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .b:disabled{opacity:.55}
 .row{display:flex;gap:6px;margin-top:8px}.row>*{flex:1}
 .ok{color:var(--later)}.err{color:var(--now)}
-h1{font-size:19px;font-stretch:94%;margin:4px 0 8px}
+h1{font-size:28px;line-height:1.05;margin:2px 0 8px}
 ul{margin:6px 0 10px;padding-left:18px}
 li{margin:4px 0}
-select{width:100%;padding:7px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);font:13px var(--read);margin-top:8px}
+select{width:100%;padding:7px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);font:13px var(--read);margin-top:8px}
 :focus-visible{outline:2px solid var(--pri);outline-offset:2px}

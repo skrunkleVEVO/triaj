@@ -3,14 +3,14 @@
 <title>Back to focus · Triaj</title><link rel="icon" href="icons/icon32.png"><link rel="stylesheet" href="shared.css">
 <style>
 html,body{height:100%}
-body{display:flex;align-items:center;justify-content:center;padding:24px;
-  background-image:linear-gradient(color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px);background-size:28px 28px}
-.tag{position:relative;width:min(440px,100%);background:var(--card);border:1px solid var(--line);border-left:8px solid var(--now);border-radius:6px 16px 16px 6px;padding:30px 28px 26px;box-shadow:0 24px 60px rgba(10,15,40,.12)}
-.tag:before{content:"";position:absolute;left:14px;top:22px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--line)}
-.site{font:600 14px var(--display);color:var(--mute);margin:0 0 6px 18px}
-h1{font-size:30px;line-height:1.1;font-weight:800;font-stretch:96%;margin:0 0 14px}
-.clock{font:800 64px/1 var(--display);font-stretch:80%;font-variant-numeric:tabular-nums;color:var(--now)}
-.on{font-size:15px;margin:6px 0 22px;color:var(--ink)}
+body{display:flex;align-items:center;justify-content:center;padding:24px;background-size:24px 24px}
+.tag{position:relative;width:min(460px,100%);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:36px 28px 26px}
+.tag:before{content:"";position:absolute;top:-11px;left:50%;width:110px;height:22px;margin-left:-55px;transform:rotate(-2.5deg);background:color-mix(in srgb,var(--hlnow) 80%,transparent);border-radius:2px}
+.site{font:600 14px var(--display);color:var(--mute);margin:0 0 6px}
+h1{font-size:40px;line-height:1;font-weight:700;margin:0 0 14px}
+.clock{font:700 64px/1 var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.clock span,.clock{text-decoration:none}
+.on{font-size:15px;margin:8px 0 22px;color:var(--ink)}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 .row .b{flex:1;min-width:150px;padding:11px}
 .note{margin-top:14px}

@@ -30,7 +30,7 @@ export const TIMER_DEFAULTS = {
 
 export const CFG_DEFAULTS = {
   ds: '08:00', de: '22:00', pace: 1.5, cap: 5, goal: 90, prep: 30, buf: 10, ahead: 7,
-  theme: 'ink', mode: 'auto', fx: true, sound: true,
+  theme: 'ink', mode: 'auto', paper: 'dots', fx: true, sound: true,
   digest: true, digestTime: '08:00',
   aiKey: '', aiModel: 'claude-haiku-5-5', aiProvider: '', geminiKey: '', geminiModel: ''
 };
@@ -460,15 +460,17 @@ export async function snapshot(reason, force) {
 // Every color theme gets its own light, dark and black palette. All text/background pairs are
 // checked for contrast in tools (see README); --on-pri is whichever of white/near-black reads best.
 export const THEMES = {
-  ink: { name: 'Ink', h: 226, s: 58, light: '#1d2f6f', dark: '#9db4ff' },
-  purple: { name: 'Purple', h: 262, s: 70, light: '#6d28d9', dark: '#a78bfa' },
-  blue: { name: 'Blue', h: 217, s: 80, light: '#1d4ed8', dark: '#60a5fa' },
-  teal: { name: 'Teal', h: 173, s: 70, light: '#0f766e', dark: '#2dd4bf' },
-  green: { name: 'Green', h: 142, s: 60, light: '#15803d', dark: '#4ade80' },
-  rose: { name: 'Rose', h: 347, s: 75, light: '#be123c', dark: '#fb7185' },
-  orange: { name: 'Orange', h: 21, s: 85, light: '#c2410c', dark: '#fb923c' },
-  slate: { name: 'Slate', h: 215, s: 18, light: '#475569', dark: '#94a3b8' }
+  ink: { name: 'Ballpoint', h: 224, s: 62, light: '#2546b0', dark: '#93abff' },
+  purple: { name: 'Gel pen', h: 262, s: 60, light: '#6a3fc0', dark: '#b7a2fb' },
+  blue: { name: 'Sky', h: 204, s: 80, light: '#0b65a3', dark: '#6cc0f5' },
+  teal: { name: 'Mint', h: 172, s: 70, light: '#0f736b', dark: '#4fd8c4' },
+  green: { name: 'Sage', h: 134, s: 40, light: '#3a763d', dark: '#8fd497' },
+  rose: { name: 'Pink highlighter', h: 340, s: 70, light: '#bb2559', dark: '#ff8fb5' },
+  orange: { name: 'Tangerine', h: 22, s: 85, light: '#b9400b', dark: '#ffa066' },
+  slate: { name: 'Pencil', h: 220, s: 12, light: '#4a5262', dark: '#a8b0bf' }
 };
+// Paper templates, like a notebook's: the page ground behind every screen.
+export const PAPERS = { dots: 'Dotted', ruled: 'Ruled', grid: 'Grid', blank: 'Blank' };
 export const MODES = { auto: 'Auto', light: 'Light', dark: 'Dark', black: 'Black' };
 
 export function hslHex(h, s, l) {
@@ -505,29 +507,35 @@ export function resolveMode(mode, systemDark) {
 export function themeVars(theme, mode, systemDark) {
   const T = THEMES[theme] || THEMES.ink, m = resolveMode(mode, systemDark), h = T.h, s = T.s, t = s / 100;
   let v;
+  // Light is a paper notebook: warm-white page, fresh white sheets, ink-black text, rulings tinted by the pen.
+  // Dark is GoodNotes-style dark paper. The highlighters (hl*) are fills that always carry ink-coloured text.
   if (m === 'light') {
-    v = { bg: hslHex(h, 60 * t, 97.5), card: '#ffffff', ink: '#1c1c22', mute: hslHex(h, 10 * t, 38), line: hslHex(h, 40 * t, 88),
-      soft: hslHex(h, 75 * t, 94.5), pri: T.light, g1: T.light, g2: hslHex(h, s, 24),
-      bad: '#b42318', ok: '#15803d', warn: '#8a5a00', warnbg: '#fcefc7', field: '#ffffff', shadow: 'rgba(15,15,30,.08)',
-      hdr: hslHex(h, s * 0.7, 17), now: '#c62f34', soon: '#9a6a00', later: '#127a66', grid: hslHex(h, 50 * t, 93) };
+    v = { bg: '#f5f3ee', card: '#fffefb', ink: '#1b2233', mute: hslHex(h, 10 * t, 36), line: '#e2ded5',
+      soft: hslHex(h, 70 * t, 94), pri: T.light, g1: T.light, g2: hslHex(h, s, 24),
+      bad: '#b42318', ok: '#2f7a3a', warn: '#8a5a00', warnbg: '#fff1b8', field: '#fffefb', shadow: 'rgba(27,34,51,.10)',
+      hdr: '#f5f3ee', now: '#bf2b3f', soon: '#8f6200', later: '#16765f', grid: hslHex(h, 55 * t, 84),
+      hlnow: '#ffc2d3', hlsoon: '#ffe680', hllater: '#bdeed0', hlink: '#1b2233' };
   } else if (m === 'dark') {
-    v = { bg: hslHex(h, 30 * t, 8), card: hslHex(h, 24 * t, 12.5), ink: '#ececf1', mute: hslHex(h, 14 * t, 70), line: hslHex(h, 20 * t, 24),
-      soft: hslHex(h, 32 * t, 19), pri: T.dark, g1: hslHex(h, 60 * t, 30), g2: hslHex(h, 50 * t, 15),
-      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#3a2e0b', field: hslHex(h, 26 * t, 10), shadow: 'rgba(0,0,0,.35)',
-      hdr: hslHex(h, 34 * t, 10.5), now: '#ff7a7e', soon: '#f5c04a', later: '#4fd1b5', grid: hslHex(h, 24 * t, 10.5) };
+    v = { bg: hslHex(h, 10 * t, 9.5), card: hslHex(h, 10 * t, 13), ink: '#eceae4', mute: hslHex(h, 10 * t, 70), line: hslHex(h, 10 * t, 22),
+      soft: hslHex(h, 28 * t, 19), pri: T.dark, g1: hslHex(h, 50 * t, 30), g2: hslHex(h, 40 * t, 15),
+      bad: '#f87171', ok: '#7fd88d', warn: '#fbbf24', warnbg: '#3a2e0b', field: hslHex(h, 10 * t, 11), shadow: 'rgba(0,0,0,.4)',
+      hdr: hslHex(h, 10 * t, 9.5), now: '#ff8a98', soon: '#f5c04a', later: '#5fd6b6', grid: hslHex(h, 14 * t, 19),
+      hlnow: '#6e2a3d', hlsoon: '#5c4b10', hllater: '#1d5a40', hlink: '#f3f1ec' };
   } else {
     v = { bg: '#000000', card: '#0d0d10', ink: '#ededf0', mute: '#a1a1aa', line: '#26262c',
       soft: hslHex(h, 40 * t, 11), pri: T.dark, g1: hslHex(h, 55 * t, 20), g2: '#000000',
-      bad: '#f87171', ok: '#4ade80', warn: '#fbbf24', warnbg: '#2b2206', field: '#060608', shadow: 'rgba(0,0,0,.6)',
-      hdr: '#000000', now: '#ff7a7e', soon: '#f5c04a', later: '#4fd1b5', grid: '#0a0a0d' };
+      bad: '#f87171', ok: '#7fd88d', warn: '#fbbf24', warnbg: '#2b2206', field: '#060608', shadow: 'rgba(0,0,0,.6)',
+      hdr: '#000000', now: '#ff8a98', soon: '#f5c04a', later: '#5fd6b6', grid: '#16161b',
+      hlnow: '#5a2232', hlsoon: '#4a3d0d', hllater: '#174a35', hlink: '#f3f1ec' };
   }
   v.onpri = onColor(v.pri);
   v.onok = onColor(v.ok);
   v.mode = m;
   return v;
 }
-export function applyThemeVars(root, theme, mode, systemDark) {
+export function applyThemeVars(root, theme, mode, systemDark, paper) {
   const v = themeVars(theme, mode, systemDark);
+  root.setAttribute('data-paper', PAPERS[paper] ? paper : 'dots');
   Object.keys(v).forEach((k) => { if (k !== 'mode') root.style.setProperty('--' + k, v[k]); });
   root.setAttribute('data-theme', v.mode === 'light' ? 'light' : 'dark');
   root.setAttribute('data-mode', v.mode);

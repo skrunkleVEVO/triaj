@@ -25,7 +25,7 @@ function topTask() {
 }
 function theme() {
   const v = m.vars; if (!v) return;
-  ['bg', 'card', 'ink', 'mute', 'line', 'soft', 'pri', 'onpri', 'hdr', 'now', 'soon', 'later', 'field'].forEach((k) => { if (v[k]) document.documentElement.style.setProperty('--' + k, v[k]); });
+  ['bg', 'card', 'ink', 'mute', 'line', 'soft', 'pri', 'onpri', 'hdr', 'now', 'soon', 'later', 'field', 'grid', 'hlnow', 'hlsoon', 'hllater', 'hlink'].forEach((k) => { if (v[k]) document.documentElement.style.setProperty('--' + k, v[k]); });
 }
 
 function renderTimer() {

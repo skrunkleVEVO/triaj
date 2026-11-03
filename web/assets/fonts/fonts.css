@@ -1,3 +1,3 @@
-/* Archivo (variable width + weight) for headings and tags; Atkinson Hyperlegible Next for reading. Both SIL OFL. */
-@font-face{font-family:"Archivo";src:url(archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+/* Caveat (variable weight) for handwritten headings; Atkinson Hyperlegible Next for reading and UI. Both SIL OFL. */
+@font-face{font-family:"Caveat";src:url(caveat.woff2) format("woff2");font-weight:400 700;font-display:swap}
 @font-face{font-family:"Atkinson";src:url(atkinson-next.woff2) format("woff2");font-weight:200 800;font-display:swap}

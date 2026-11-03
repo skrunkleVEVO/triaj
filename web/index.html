@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Triaj: know what to do next</title>
-<meta name="description" content="Triaj reads everything due in Canvas, sorts it into now, soon and later, and plans when you'll work on each one around your classes. Free on your phone and computer.">
-<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1424" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Triaj is a student planner that reads everything due in Canvas, highlights it as now, soon or later, and plans when you'll work on each one around your classes. Free on your phone and computer.">
+<meta name="theme-color" content="#e4e6e9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Triaj: know what to do next">
-<meta property="og:description" content="Everything due in Canvas, sorted into now, soon and later, with a study plan and a focus timer.">
+<meta property="og:description" content="Everything due in Canvas, highlighted as now, soon and later, with a study plan and a focus timer. Like a notebook that plans itself.">
 <meta property="og:image" content="https://skrunklevevo.github.io/triaj/assets/og.png">
 <meta property="og:url" content="https://skrunklevevo.github.io/triaj/">
 <meta name="twitter:card" content="summary_large_image">
@@ -16,125 +16,199 @@
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="icon" href="assets/icon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
-<link rel="preload" href="assets/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/caveat.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-<header class="top">
-  <a class="logo" href="./"><img src="assets/logo.svg" alt="" width="28" height="28">Triaj</a>
-  <nav class="links" aria-label="Page"><a href="#features">What it does</a><a href="#companion">Companion</a><a href="https://github.com/skrunkleVEVO/triaj">Source</a></nav>
-  <a class="btn small" href="app/">Open Triaj</a>
-</header>
-
 <main>
+
+<!-- 1. The notebook sheet beside the reading room -->
 <section class="hero">
-  <div class="copy">
-    <h1>Know what to do&nbsp;next.</h1>
-    <p class="lede">Triaj reads everything due in Canvas, sorts it into what needs you now, what's coming up, and what can wait, then plans when you'll actually work on each one around your classes.</p>
-    <div class="ctas">
-      <a class="btn" href="app/">Open Triaj</a>
-      <button class="btn ghost" type="button" id="install" hidden>Install on this device</button>
-    </div>
-    <p class="fine">Free. Sign in with Google or email and it's the same planner on your phone, laptop and any browser.</p>
-  </div>
-
-  <div class="board" aria-label="Example: a week of coursework sorted by Triaj">
-    <div class="bin now"><h2>Now</h2>
-      <div class="tg" style="--i:0"><b>Problem Set 6</b><span>Math 221, due tomorrow</span><em>about 3 h left</em></div>
-      <div class="tg" style="--i:1"><b>Reading: chapter 7</b><span>Psych 101, due today</span><em>about 45 min</em></div>
-    </div>
-    <div class="bin soon"><h2>Soon</h2>
-      <div class="tg" style="--i:2"><b>Project phase 2</b><span>CPSC 210, due Sunday</span><em>planned: 3 blocks</em></div>
-      <div class="tg" style="--i:3"><b>Quiz 4</b><span>Math 221, in class Saturday</span><em>nothing to plan</em></div>
-      <div class="tg" style="--i:4"><b>Essay draft</b><span>English 112, due Monday</span><em>waiting on outline</em></div>
-    </div>
-    <div class="bin later"><h2>Later</h2>
-      <div class="tg" style="--i:5"><b>Lab 7</b><span>CPSC 210, next week</span><em>starts Thursday</em></div>
-      <div class="tg" style="--i:6"><b>Midterm 2</b><span>Psych 101, in 9 days</span><em>study from the 25th</em></div>
+  <div class="sheet hsheet">
+    <div class="spiral" aria-hidden="true"></div>
+    <div class="hin">
+      <a class="mark" href="./"><img src="assets/logo.svg" alt="" width="56" height="56"><span>Triaj</span></a>
+      <h1 class="rv">Know what to do next.</h1>
+      <p class="lede rv">Triaj is a student planner that reads everything due in Canvas, highlights it as now, soon or later, and plans when you'll work on each one around your classes.</p>
+      <div class="ctas rv">
+        <a class="btn" href="app/">Open Triaj, it's free</a>
+        <button class="btn ghost" type="button" id="install" hidden>Install on this device</button>
+      </div>
+      <nav class="hlinks rv" aria-label="Page"><a href="#try">Try it</a><a href="#menu">What it does</a><a href="#questions">Questions</a><a href="#companion">Companion</a></nav>
     </div>
   </div>
+  <figure class="room" aria-label="Study rooms">
+    <img class="on" src="assets/arlington-state-college-library-students-studying-10010394.jpg" alt="Students studying at long tables in a college library, 1950s" width="1920" height="1530">
+    <img src="assets/graz-university-library-reading-room.jpg" alt="A university reading room with rows of desks and white lamps" width="1600" height="1200" loading="lazy">
+    <img src="assets/person-writing-in-notebook-while-using-laptop.jpg" alt="Someone writing in a notebook beside a laptop" width="1920" height="1282" loading="lazy">
+    <figcaption>Somewhere, a reading room. Triaj brings the quiet with it.</figcaption>
+  </figure>
 </section>
 
-<section class="screens" aria-label="Triaj on a computer and a phone">
-  <figure class="desk"><img src="assets/shot-desktop.png" alt="Triaj on a laptop: today's free time, the task to do next, and the top three picks" width="1280" height="800" loading="lazy"></figure>
-  <figure class="phone"><img src="assets/shot-phone.png" alt="Triaj on a phone" width="390" height="844" loading="lazy"></figure>
-</section>
-
-<section id="features" class="features">
-  <h2>What it handles for you</h2>
-  <dl>
-    <div><dt>Canvas, without copying anything</dt><dd>Assignments, quizzes (even locked ones), discussions, peer reviews and exam dates arrive on their own. Changed due dates update, and work you submit gets checked off.</dd></div>
-    <div><dt>When to work, not just what's due</dt><dd>Give it your class times and how fast you work. It fills the gaps in your week with study blocks, starts big things early, and leaves in-class quizzes alone.</dd></div>
-    <div><dt>A focus timer that keeps you there</dt><dd>Pomodoro, deep work or your own timings, with gentle nudges and brown or pink noise. With the companion it counts down on your toolbar and keeps YouTube, Reddit and anything else you list out of reach until your break.</dd></div>
-    <div><dt>Help when you're stuck</dt><dd>Ask the AI to plan your week, turn a sentence into tasks, or pull exam dates out of a syllabus PDF. It suggests; nothing changes until you press Apply. Free with your own Gemini key.</dd></div>
-    <div><dt>Things that can't start yet</dt><dd>Mark a task as waiting on another one, or on something like "partner sends data". It comes back on its own when it's ready.</dd></div>
-    <div><dt>Course files, in folders</dt><dd>Download every PDF and slide deck for a course, or just what one assignment needs, into Downloads/Canvas/course/module. It remembers what changed since last time.</dd></div>
-  </dl>
-</section>
-
-<section id="phone" class="install">
-  <div>
-    <h2>Put it on your phone</h2>
-    <p>Triaj installs like an app: its own icon, full screen, works offline. Your tasks are already there when you sign in.</p>
-    <button class="btn" type="button" id="install2">Install Triaj</button>
-  </div>
-  <ul class="how">
-    <li><b>iPhone and iPad</b>Open Triaj in Safari, tap Share, then Add to Home Screen.</li>
-    <li><b>Android</b>Open Triaj in Chrome and tap Install when it asks, or menu, then Install app.</li>
-    <li><b>Computer</b>Click the install icon at the end of the address bar in Chrome or Edge.</li>
-  </ul>
-</section>
-
-<section id="companion" class="companion">
-  <div class="cintro">
-    <h2>The companion extension</h2>
-    <p>Browsers won't let a website read your Canvas with your sign-in, which is a good rule. So on your computer, a small extension does exactly the parts a website can't: Canvas and private calendar sync, the toolbar timer, site blocking, and saving course files. It never stores your planner, and it only reads sites you allow.</p>
-    <a class="btn" href="triaj-companion.zip" download>Download the companion</a>
-  </div>
-  <div class="csteps">
-    <div class="tabs" role="tablist" aria-label="Your browser">
-      <button role="tab" aria-selected="true" data-b="chromium">Chrome, Edge, Brave, Opera</button>
-      <button role="tab" aria-selected="false" data-b="firefox">Firefox</button>
+<!-- 2. The live thing: sort something that's due -->
+<section id="try" class="show">
+  <div class="plate" data-ui>
+    <div class="page" id="board" aria-label="This week, sorted by Triaj">
+      <div class="col now" data-c="now"><h3><span>Now</span></h3>
+        <div class="it"><b>Problem Set 6</b><span>Math 221 · due tomorrow · ~3 h</span></div>
+        <div class="it"><b>Reading: ch. 7</b><span>Psych 101 · due today · 45 min</span></div>
+      </div>
+      <div class="col soon" data-c="soon"><h3><span>Soon</span></h3>
+        <div class="it"><b>Project phase 2</b><span>CPSC 210 · Sunday · 3 blocks</span></div>
+        <div class="it"><b>Quiz 4</b><span>Math 221 · in class Saturday</span></div>
+        <div class="it"><b>Essay draft</b><span>English 112 · Monday · after outline</span></div>
+      </div>
+      <div class="col later" data-c="later"><h3><span>Later</span></h3>
+        <div class="it"><b>Lab 7</b><span>CPSC 210 · next week · starts Thu</span></div>
+        <div class="it"><b>Midterm 2</b><span>Psych 101 · in 9 days · study from the 25th</span></div>
+      </div>
     </div>
-    <ol class="steps" data-b="chromium">
-      <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep, like Documents.</li>
-      <li>Open <code>chrome://extensions</code> (or <code>edge://</code>, <code>brave://</code>, <code>opera://extensions</code>) and turn on Developer mode.</li>
-      <li>Press Load unpacked and choose that folder. Pin the Triaj icon so the timer is one click away.</li>
-      <li>In Triaj, open More, then Sync, enter your Canvas address and press Connect.</li>
-    </ol>
-    <ol class="steps" data-b="firefox" hidden>
-      <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep.</li>
-      <li>Open <code>about:debugging#/runtime/this-firefox</code> and press Load Temporary Add-on, then choose <code>manifest.json</code> in that folder.</li>
-      <li>In Triaj, open More, then Sync, and press Connect.</li>
-      <li>Firefox removes temporary add-ons when it quits. Firefox Developer Edition can keep it: set <code>xpinstall.signatures.required</code> to false in <code>about:config</code>, then install the zip from the add-ons page.</li>
-    </ol>
+  </div>
+  <div class="sside">
+    <div class="tabs" role="tablist" aria-label="Triage">
+      <button role="tab" aria-selected="true" data-c="now">Now</button>
+      <button role="tab" aria-selected="false" data-c="soon">Soon</button>
+      <button role="tab" aria-selected="false" data-c="later">Later</button>
+    </div>
+    <div class="smid">
+      <h2 class="rv">Sorted like your notes</h2>
+      <p class="rv" id="tabtext">Now is what needs you today: due soon and not started, or bigger than the time left. Triaj puts the one to start first at the top.</p>
+      <form class="try rv" id="tryform" hidden>
+        <label for="tn">Something you have due</label>
+        <input id="tn" value="Lab report" autocomplete="off" maxlength="40">
+        <div class="tr">
+          <div><label for="td">Due</label><select id="td"><option value="0">Today</option><option value="1" selected>Tomorrow</option><option value="3">In 3 days</option><option value="7">Next week</option><option value="14">In 2 weeks</option></select></div>
+          <div><label for="ts">Takes about</label><select id="ts"><option value="0.5">30 min</option><option value="1">1 hour</option><option value="3" selected>3 hours</option><option value="6">6 hours</option></select></div>
+        </div>
+        <button class="btn" type="submit">Sort it</button>
+        <p class="verdict" id="verdict" aria-live="polite"></p>
+      </form>
+    </div>
+    <div class="cells">
+      <a class="cell ink" href="app/">Open Triaj</a>
+      <a class="cell" href="#phone" data-open="phone">Put it on your phone</a>
+    </div>
   </div>
 </section>
 
-<section class="privacy">
-  <h2>Your data stays yours</h2>
-  <p>Your planner, and any Canvas token or AI key you add, is stored in your own account and only you can read it. There are no ads, analytics or trackers. Canvas data goes from Canvas to your browser to your account. AI requests go straight from your browser to the provider you pick. Without an account, everything stays in that one browser.</p>
+<!-- 3. Capabilities as a torn-out page -->
+<section id="menu" class="menu">
+  <div class="torn">
+    <h2 class="rv">What it handles</h2>
+    <div class="grp rv"><h3>From Canvas</h3>
+      <div class="li"><p class="ln"><b>Assignments, quizzes, discussions</b><i></i><span>arrive on their own</span></p><p class="d">Peer reviews and exam dates too, even locked quizzes.</p></div>
+      <div class="li"><p class="ln"><b>A due date moves</b><i></i><span>updated</span></p><p class="d">Or it asks first, if you changed that date yourself.</p></div>
+      <div class="li"><p class="ln"><b>Work you submit</b><i></i><span>checked off</span></p><p class="d">Canvas says it's in, Triaj ticks it.</p></div>
+      <div class="li"><p class="ln"><b>Course files</b><i></i><span>in folders</span></p><p class="d">Every PDF and deck into Downloads/Canvas/course/module.</p></div>
+    </div>
+    <div class="grp rv"><h3>Your week</h3>
+      <div class="li"><p class="ln"><b>Study blocks around classes</b><i></i><span>planned for you</span></p><p class="d">It fills the gaps, starts big things early, skips in-class quizzes.</p></div>
+      <div class="li"><p class="ln"><b>How fast you work</b><i></i><span>1× to 2×</span></p><p class="d">Estimates stretch to your real pace.</p></div>
+      <div class="li"><p class="ln"><b>Things that can't start yet</b><i></i><span>wait their turn</span></p><p class="d">"After the outline" or "partner sends data", then back on its own.</p></div>
+    </div>
+    <div class="grp rv"><h3>Focus</h3>
+      <div class="li"><p class="ln"><b>Pomodoro, deep work, sprint</b><i></i><span>or your own</span></p><p class="d">Brown, pink or white noise, gentle nudges back.</p></div>
+      <div class="li"><p class="ln"><b>YouTube, Reddit, anything you list</b><i></i><span>blocked</span></p><p class="d">Only during a focus round. Breaks are free.</p></div>
+      <div class="li"><p class="ln"><b>AI help when you're stuck</b><i></i><span>your key</span></p><p class="d">Plans, first steps, exam dates from a syllabus. Nothing changes until you press Apply.</p></div>
+    </div>
+  </div>
+  <figure class="pencil rv"><img src="assets/person-writing-pencil-notebook-pencil.webp" alt="A pencil writing on a ruled spiral notebook, shavings on the page" width="1024" height="683" loading="lazy"></figure>
+</section>
+
+<!-- 4. One week, left to right -->
+<section id="week" class="week">
+  <div class="whead">
+    <h2 class="rv">One week with Triaj</h2>
+    <div class="arrows"><button type="button" class="sq" id="wprev" aria-label="Earlier in the week">&#8592;</button><button type="button" class="sq" id="wnext" aria-label="Later in the week">&#8594;</button></div>
+  </div>
+  <div class="track" aria-hidden="true"><span id="wbar"></span></div>
+  <ol class="row" id="wrow">
+    <li style="--gap:96px"><h3>Sunday night</h3><p>Canvas syncs. Three new assignments, a quiz date and a moved deadline arrive without copying a thing.</p><img src="assets/person-writing-pencil-notebook-pencil.webp" alt="Pencil on a ruled notebook page" width="1024" height="683" loading="lazy"></li>
+    <li style="--gap:32px"><h3>Monday morning</h3><p>The plan fills your gaps. Study blocks land between lectures, your shift and the gym.</p><img src="assets/shot-schedule.png" alt="Triaj's schedule: a week of classes with study blocks in between" width="1280" height="800" loading="lazy"></li>
+    <li style="--gap:128px"><h3>Monday, 2 pm</h3><p>Do this next. One task, how long it takes, and a button for 25 minutes.</p><img src="assets/shot-phone.png" alt="Triaj on a phone showing the task to do next" width="780" height="1688" loading="lazy"></li>
+    <li style="--gap:64px"><h3>Tuesday</h3><p>A focus round. Reddit turns into a back-to-focus page until your break.</p><img src="assets/shot-phone-focus.png" alt="Triaj's focus timer on a phone" width="780" height="1688" loading="lazy"></li>
+    <li style="--gap:112px"><h3>Wednesday</h3><p>A due date moved. Triaj changes it, or asks if you'd set it yourself.</p><img src="assets/sherwin-carlquist-field-notebook-from-1973-expedition.jpg" alt="A handwritten notebook page with corrections in red" width="1318" height="2035" loading="lazy"></li>
+    <li style="--gap:40px"><h3>Thursday</h3><p>Stuck? Ask for a first step, or turn one sentence into three tasks.</p><img src="assets/person-writing-in-notebook-while-using-laptop.jpg" alt="Writing in a notebook next to a laptop" width="1920" height="1282" loading="lazy"></li>
+    <li style="--gap:88px"><h3>Friday</h3><p>Submitted. Canvas says it's in, Triaj ticks it off. The weekend is yours.</p><img src="assets/arlington-state-college-library-students-studying-10010394.jpg" alt="Students studying in a college library" width="1920" height="1530" loading="lazy"></li>
+  </ol>
+</section>
+
+<!-- 5. Questions beside the reading room -->
+<section id="questions" class="faq">
+  <div class="qcol">
+    <h2 class="rv">Questions, answered</h2>
+    <ul class="facts rv"><li>Free, with no ads or trackers.</li><li>Same planner on your phone, laptop and any browser.</li><li>Works offline once it's installed.</li></ul>
+    <div class="acc rv">
+      <details id="phone"><summary>How do I put it on my phone?</summary>
+        <div class="ans"><p>Triaj installs like an app: its own icon, full screen, works offline. Your tasks are already there when you sign in.</p>
+          <ul class="how"><li><b>iPhone and iPad:</b> open Triaj in Safari, tap Share, then Add to Home Screen.</li><li><b>Android:</b> open Triaj in Chrome and tap Install, or menu, then Install app.</li><li><b>Computer:</b> click the install icon at the end of the address bar in Chrome or Edge.</li></ul>
+          <button class="btn small" type="button" id="install2">Install Triaj</button></div></details>
+      <details id="companion"><summary>What is the companion extension?</summary>
+        <div class="ans"><p>Browsers won't let a website read your Canvas with your sign-in, which is a good rule. So on your computer, a small extension does the parts a website can't: Canvas and private calendar sync, the toolbar timer, site blocking and saving course files. It never stores your planner, and it only reads sites you allow.</p>
+          <a class="btn small" href="triaj-companion.zip" download>Download the companion</a></div></details>
+      <details><summary>How do I install the companion?</summary>
+        <div class="ans">
+          <div class="btabs" role="tablist" aria-label="Your browser">
+            <button role="tab" aria-selected="true" data-b="chromium">Chrome, Edge, Brave, Opera</button>
+            <button role="tab" aria-selected="false" data-b="firefox">Firefox</button>
+          </div>
+          <ol class="steps" data-b="chromium">
+            <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep, like Documents.</li>
+            <li>Open <code>chrome://extensions</code> (or <code>edge://</code>, <code>brave://</code>, <code>opera://extensions</code>) and turn on Developer mode.</li>
+            <li>Press Load unpacked and choose that folder. Pin the Triaj icon so the timer is one click away.</li>
+            <li>In Triaj, open More, then Sync, enter your Canvas address and press Connect.</li>
+          </ol>
+          <ol class="steps" data-b="firefox" hidden>
+            <li>Unzip <code>triaj-companion.zip</code> into a folder you'll keep.</li>
+            <li>Open <code>about:debugging#/runtime/this-firefox</code>, press Load Temporary Add-on and choose <code>manifest.json</code> in that folder.</li>
+            <li>In Triaj, open More, then Sync, and press Connect.</li>
+            <li>Firefox removes temporary add-ons when it quits. Firefox Developer Edition can keep it: set <code>xpinstall.signatures.required</code> to false in <code>about:config</code>, then install the zip from the add-ons page.</li>
+          </ol></div></details>
+      <details><summary>Who can see my planner?</summary>
+        <div class="ans"><p>Only you. Your planner, and any Canvas token or AI key you add, is stored in your own account. There are no ads, analytics or trackers. Canvas data goes from Canvas to your browser to your account, and AI requests go straight from your browser to the provider you pick. Without an account, everything stays in that one browser.</p></div></details>
+      <details><summary>Do I need Canvas?</summary>
+        <div class="ans"><p>No. Add tasks yourself, type one sentence and let it make the tasks, or subscribe to an iCal feed. Canvas just saves the typing.</p></div></details>
+      <details><summary>What does the AI cost?</summary>
+        <div class="ans"><p>Nothing from us. You bring your own key: free with Gemini, or use Claude. It suggests a plan or a first step, and nothing changes until you press Apply.</p></div></details>
+    </div>
+    <div class="qend rv"><a class="btn" href="app/">Open Triaj</a><a class="tl" href="https://github.com/skrunkleVEVO/triaj">Read the source</a></div>
+  </div>
+  <div class="qpics">
+    <img class="tall" src="assets/graz-university-library-reading-room.jpg" alt="Rows of reading desks under white lamps in a university library" width="1600" height="1200" loading="lazy">
+    <img class="sqr" src="assets/sherwin-carlquist-field-notebook-from-1973-expedition.jpg" alt="Blue ink notes on ruled paper, with red corrections" width="1318" height="2035" loading="lazy">
+  </div>
+</section>
+
+<!-- 6. The index card -->
+<section class="reply">
+  <p class="rnote rv">Your syllabus is already in Canvas. Let Triaj read it for you.</p>
+  <div class="card rv">
+    <h2>Start this week</h2>
+    <p>Sign in with Google or email, or just start in this browser. Free, on every device.</p>
+    <a class="bar" href="app/">Open Triaj</a>
+  </div>
 </section>
 </main>
 
-<footer class="foot">
-  <span>Made by <a href="https://github.com/skrunkleVEVO">skrunkleVEVO</a></span>
-  <span><a href="https://github.com/skrunkleVEVO/triaj">Source on GitHub</a><a href="app/">Open Triaj</a></span>
+<!-- 7. The back of the card -->
+<footer class="back">
+  <div class="post">
+    <div class="msg">
+      <h2>Good luck this term</h2>
+      <p>Triaj is made by <a href="https://github.com/skrunkleVEVO">skrunkleVEVO</a>. It grew out of My Planner, a Chrome extension, and backups from it restore straight into Triaj.</p>
+    </div>
+    <div class="addr">
+      <img class="stamp" src="assets/person-writing-pencil-notebook-pencil.webp" alt="" width="1024" height="683" loading="lazy">
+      <a href="app/">Open Triaj</a>
+      <a href="triaj-companion.zip" download>Download the companion</a>
+      <a href="https://github.com/skrunkleVEVO/triaj">Source on GitHub</a>
+      <a href="#questions">Questions</a>
+    </div>
+    <p class="credits">Pictures: <a href="https://commons.wikimedia.org/w/index.php?curid=89167675">“Arlington State College Library, students studying”</a>, University of Texas at Arlington Photograph Collection, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; <a href="https://www.rawpixel.com/image/3283992/free-photo-image-writing-write-pencil">“person writing pencil notebook pencil”</a>, <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, rawpixel; <a href="https://commons.wikimedia.org/w/index.php?curid=186624327">“Person writing in notebook while using laptop”</a> by Shixart1985, <a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=352545">“Graz University-Library reading-room”</a> by Dr. Marcus Gossler, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>; <a href="https://commons.wikimedia.org/w/index.php?curid=188195562">Sherwin Carlquist field notebook, 1973</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. All via Wikimedia Commons unless noted.</p>
+  </div>
 </footer>
-<script type="module">
-import { installable, install, onChange, standalone } from './app/lib/install.js';
-const b1 = document.getElementById('install'), b2 = document.getElementById('install2');
-const paint = () => { b1.hidden = !installable(); if (standalone()) document.getElementById('phone').hidden = true; };
-onChange(paint); paint();
-b1.onclick = b2.onclick = () => install();
-document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
-  document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
-  document.querySelectorAll('.steps').forEach((s) => { s.hidden = s.dataset.b !== b.dataset.b; });
-}));
-if (/firefox/i.test(navigator.userAgent)) document.querySelector('.tabs [data-b="firefox"]').click();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
+<script type="module" src="landing.js"></script>
 </body>
 </html>

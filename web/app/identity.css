@@ -1,11 +1,12 @@
-/* ================= Triaj identity =================
-   Ink and paper. Color goes on meaning: --pri for the one thing to do, and the three triage colors,
-   --now (red), --soon (amber), --later (green), only on the fact that needs them.
-   Archivo (variable width) for headings, numbers and labels; Atkinson Hyperlegible for reading.
-   Scale: 12 / 13 / 15 / 18 / 24. Radii: 12 cards, 8 controls, 6 chips. One 16px gutter.
+/* ================= Triaj identity: a paper notebook =================
+   Sheets of paper on a notebook page (dotted, ruled, grid or blank, chosen in Settings). Color goes on
+   meaning: --pri is the pen, for the one thing to do; the three highlighters (--hlnow pink, --hlsoon yellow,
+   --hllater mint) mark now, soon and later, always under ink-coloured text.
+   Caveat (handwriting) for titles; Atkinson Hyperlegible for everything you read or press.
+   Scale: 12 / 13 / 15 / 22 (hand) / 32 (hand). Radii: 6 sheets, 10 fields, round buttons. One 16px gutter.
    Loaded after app.css, which holds the planner's layout. */
-:root{--display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;--read:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --hdr:#141d3d;--now:#c62f34;--soon:#9a6a00;--later:#127a66;--grid:#e6eaf3;--r-lg:12px;--r-md:8px;--r-sm:6px;
+:root{--display:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif;--hand:"Caveat","Segoe Print","Bradley Hand",cursive;--read:"Atkinson",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --hdr:#141d3d;--now:#c62f34;--soon:#9a6a00;--later:#127a66;--grid:#d6def0;--hlnow:#ffc2d3;--hlsoon:#ffe680;--hllater:#bdeed0;--hlink:#1b2233;--r-lg:6px;--r-md:10px;--r-sm:4px;
   --ease-out:cubic-bezier(.23,1,.32,1);--ease-drawer:cubic-bezier(.32,.72,0,1)}
 html{scrollbar-color:var(--line) transparent}
 body{font-family:var(--read);font-size:15px;line-height:1.5;background:var(--bg);-webkit-tap-highlight-color:transparent}
@@ -336,3 +337,114 @@ button:disabled{opacity:.55;cursor:default}
 }
 @media (max-width:899px){body{padding-bottom:calc(74px + env(safe-area-inset-bottom,0px))}}
 @media (prefers-reduced-motion:reduce){.dfill{transition:none}}
+
+/* ================= the notebook layer =================
+   Everything below dresses the planner as a paper notebook. It sits last so it wins over the layout rules above. */
+
+/* the page itself: a notebook template, chosen in Settings → Paper. Drawn in the pen's ruling color (--grid). */
+body{background-color:var(--bg);background-attachment:local}
+html[data-paper="dots"] body{background-image:radial-gradient(circle at 1px 1px,var(--grid) 1.3px,transparent 1.6px);background-size:24px 24px}
+html[data-paper="ruled"] body{background-image:linear-gradient(var(--grid) 1px,transparent 1px);background-size:100% 32px;background-position:0 31px}
+html[data-paper="grid"] body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+html[data-paper="blank"] body{background-image:none}
+html[data-mode="black"] body{background-image:none}
+
+/* handwritten titles: the parts you'd write yourself */
+h1,h2,h3,summary,.brand span,.nowt,.ztask,.tname,.gate h1,.sheet h2{font-family:var(--hand);font-stretch:normal;letter-spacing:0}
+h3{font-size:23px;font-weight:700;line-height:1.05;margin:0 0 10px}
+summary{font-size:23px;font-weight:700;line-height:1.1}
+.cpanel h3{font-size:21px}
+.brand{font-weight:700;font-size:28px;line-height:1;gap:10px}
+.brand img{border-radius:7px}
+.sheet h2{font-size:30px;line-height:1.05;font-weight:700}
+.gate h1{font-size:44px;font-weight:700;line-height:1}
+
+/* header and sidebar: the notebook's own margin, quiet */
+header{background:color-mix(in srgb,var(--bg) 94%,transparent);border-bottom:1px solid var(--line)}
+nav{background:var(--bg)}
+nav button{font-weight:600}
+nav button.on{color:var(--ink)}
+nav button.on .ni{background:var(--soft);color:var(--pri)}
+@media (min-width:900px){
+  nav{background:var(--bg)}
+  nav button.on{background:var(--soft)}
+  nav button.on .ni{background:none}
+}
+
+/* sheets of paper: cards lie flat on the page, square-ish corners like real paper */
+.card,.acc,.mlist,.notice{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+.card{padding:18px}
+.blk{border-radius:var(--r-sm)}
+
+/* the "do this next" card: a sheet taped to the page, its task highlighted */
+.nowcard{position:relative;overflow:visible}
+.nowcard:before{content:"";position:absolute;top:-10px;left:28px;width:88px;height:20px;transform:rotate(-3deg);
+  background:color-mix(in srgb,var(--hlsoon) 78%,transparent);border-radius:2px;pointer-events:none;
+  -webkit-mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent calc(100% - 3px));mask:linear-gradient(90deg,transparent 0 3px,#000 3px calc(100% - 3px),transparent calc(100% - 3px))}
+.nowt{font-size:34px;font-weight:700;line-height:1.08;letter-spacing:0;margin:12px 0 8px}
+.nowt .hl{background:linear-gradient(transparent 50%,var(--hlsoon) 50%,var(--hlsoon) 92%,transparent 92%);-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0 4px;margin:0 -4px;color:var(--hlink)}
+.nowcard .nowmeta{margin-top:10px}
+.ztask{font-size:32px;font-weight:700;line-height:1.1}
+.tname{font-size:26px;font-weight:700;line-height:1.1}
+
+/* buttons: the pen. Round, one fill, ink on paper for the quiet ones */
+.btn{border-radius:999px;font-weight:700}
+.btn.sec{background:var(--soft);color:var(--ink)}
+.btn.mute,.ghost{border-radius:999px}
+.seg{border-radius:999px;padding:3px}
+.seg button{border-radius:999px}
+.seg button.on{box-shadow:none;background:var(--card);color:var(--pri)}
+input,select,textarea{border-radius:var(--r-md)}
+
+/* highlighters on meaning: overdue and warnings get a marker swipe, never a red box */
+.chip.bad,.chip.blkc.warn{background:var(--hlnow);color:var(--hlink)}
+.chip.warn,.chip.lock,.chip.blkc,.chip.ic.warn{background:var(--hlsoon);color:var(--hlink)}
+.chip{border-radius:3px}
+.late{color:var(--now)}
+.h{background:var(--hlnow)}.m{background:var(--hlsoon)}.l{background:var(--hllater)}
+.h,.m,.l{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 18%,transparent)}
+/* course badges: a strip of washi tape in the class color */
+.tag{border-radius:2px;font-weight:700;background:color-mix(in srgb,var(--c,var(--mute)) 20%,var(--card));color:color-mix(in srgb,var(--c,var(--mute)) 34%,var(--ink))}
+
+/* checkboxes: a pen tick in a drawn box */
+.chk{border-radius:7px;border-width:2px}
+.done .chk{background:var(--pri);border-color:var(--pri)}
+.done .t{text-decoration-color:color-mix(in srgb,var(--ink) 55%,transparent);text-decoration-thickness:2px}
+
+/* empty states read like a blank page waiting for you */
+.estate{border:2px dashed var(--line);border-radius:var(--r-lg);background:color-mix(in srgb,var(--card) 60%,transparent)}
+.empty{font-family:var(--hand);font-size:22px;color:var(--mute);line-height:1.2}
+
+/* focus: a pencil-dotted dial, the pen fills it */
+.dtrack{stroke:var(--line);stroke-dasharray:.1 7;stroke-linecap:round;stroke-width:4}
+.dfill{stroke-width:6}
+.mode{border-radius:var(--r-md)}
+.mode.on{background:var(--soft);border-color:var(--pri)}
+
+/* settings: pen swatches and paper templates */
+.pens{display:flex;gap:10px;flex-wrap:wrap}
+.sw{position:relative;width:40px;height:40px;border-radius:50%;border:0;padding:0;background:var(--sw);cursor:pointer;transition:transform 120ms var(--ease-out)}
+html[data-theme="dark"] .sw{background:var(--swd)}
+.sw.on{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--ink)}
+.sw:active{transform:scale(.94)}
+.papers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pp{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 6px;border:1px solid var(--line);border-radius:var(--r-md);background:none;color:var(--ink);font:600 13px var(--display);cursor:pointer;transition:border-color 150ms ease,transform 120ms var(--ease-out)}
+.pp span{width:100%;aspect-ratio:4/3;border-radius:3px;background-color:var(--bg)}
+.pp-dots span{background-image:radial-gradient(circle at 1px 1px,var(--grid) 1.2px,transparent 1.5px);background-size:10px 10px}
+.pp-ruled span{background-image:linear-gradient(var(--grid) 1px,transparent 1px);background-size:100% 10px;background-position:0 9px}
+.pp-grid span{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:10px 10px}
+.pp.on{border-color:var(--pri);background:var(--soft)}
+.pp:active{transform:scale(.97)}
+
+/* floating things: the only shadows, because they really float */
+.minibar,.toast{box-shadow:0 10px 30px var(--shadow)}
+.sheet{border-radius:14px 14px 0 0}
+@media (min-width:640px){.sheet{border-radius:14px}}
+.full .sheet{border-radius:var(--r-lg)}
+.sheetwrap.full{background-color:var(--bg);background-image:radial-gradient(circle at 1px 1px,var(--grid) 1.3px,transparent 1.6px);background-size:24px 24px}
+.glogo{border-radius:14px}
+
+/* boot: the notebook opening */
+.boot{font-family:var(--hand);font-size:24px}
+.boot img{border-radius:12px}
+@media (max-width:640px){.nowt{font-size:29px}.ztask{font-size:27px}}

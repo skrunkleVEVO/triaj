@@ -19,12 +19,12 @@ addEventListener('appinstalled', () => { deferred = null; emit(); });
 export const installable = () => !standalone() && (!!deferred || isIOS() || isAndroid() || touch());
 
 const STYLE = '.tjm{position:fixed;inset:0;z-index:99;background:rgba(8,12,28,.55);display:flex;align-items:flex-end;justify-content:center;font:15px/1.5 "Atkinson",system-ui,sans-serif}' +
-  '.tjm>div{background:#fff;color:#15224a;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom,0px))}' +
+  '.tjm>div{background:#fffefb;color:#1b2233;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom,0px))}' +
   '@media (min-width:600px){.tjm{align-items:center}.tjm>div{border-radius:16px}}' +
-  '@media (prefers-color-scheme:dark){.tjm>div{background:#121a33;color:#e8ecf8}}' +
-  '.tjm h2{font:800 21px/1.2 "Archivo",system-ui,sans-serif;font-stretch:92%;margin:0 0 12px}.tjm ol{margin:0 0 16px;padding-left:22px}.tjm li{margin:6px 0}' +
-  '.tjm button{font:700 15px "Archivo",system-ui,sans-serif;width:100%;padding:12px;border:0;border-radius:10px;background:#15224a;color:#fff;cursor:pointer}' +
-  '@media (prefers-color-scheme:dark){.tjm button{background:#9db4ff;color:#0c1430}}.tjm .ic{display:inline-block;vertical-align:-3px}';
+  '@media (prefers-color-scheme:dark){.tjm>div{background:#1d2027;color:#eceae4}}' +
+  '.tjm h2{font:700 30px/1.05 "Caveat",cursive;margin:0 0 12px}.tjm ol{margin:0 0 16px;padding-left:22px}.tjm li{margin:6px 0}' +
+  '.tjm button{font:700 15px "Atkinson",system-ui,sans-serif;width:100%;padding:12px;border:0;border-radius:999px;background:#2546b0;color:#fff;cursor:pointer}' +
+  '@media (prefers-color-scheme:dark){.tjm button{background:#93abff;color:#121418}}.tjm .ic{display:inline-block;vertical-align:-3px}';
 const SHARE = '<svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
 const DOTS = '<b aria-label="menu">⋮</b>';
 

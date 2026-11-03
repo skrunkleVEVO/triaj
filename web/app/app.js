@@ -2,7 +2,7 @@
 // shared with the engine, which syncs Canvas/calendars and runs the focus timer.
 import {
   normalize, iso, mn, hm, need as needRaw, newId, cleanHost, originOf, mergeItems, parseICS, icsToItems,
-  statsText, PAL, PRESETS, guessTask, matchClass, THEMES, MODES, applyThemeVars, onColor, inClassSlot, classSlotsOn, sweepInClass, blockState, isBlocked, sweepBlocks, dependsOn, makeBackup, parseBackup
+  statsText, PAL, PRESETS, guessTask, matchClass, THEMES, MODES, PAPERS, applyThemeVars, onColor, inClassSlot, classSlotsOn, sweepInClass, blockState, isBlocked, sweepBlocks, dependsOn, makeBackup, parseBackup
 } from './lib/shared.js';
 import { playSound, SOUNDS, AMBIENT } from './lib/sounds.js';
 import { makeApi, listCourseFiles, listItemFiles, downloadAll, cleanName, blobUrl, dataUrl, instructionsPage } from './lib/canvasfiles.js';
@@ -280,6 +280,7 @@ ACT.setCfg = () => {
 };
 ACT.setTheme = (k) => { st.cfg.theme = k; st.cfg.themePicked = true; save(); applyTheme(); render(); };
 ACT.setMode = (m) => { st.cfg.mode = m; save(); applyTheme(); render(); };
+ACT.setPaper = (p) => { st.cfg.paper = p; save(); applyTheme(); render(); };
 ACT.setFlag = (k) => { const el = EL; st.cfg[k] = el.checked; save(); if (k === 'digest') send({ cmd: 'reschedule' }); if (k === 'sound') send({ cmd: 'timer', op: 'ambient' }); };
 ACT.digestTime = () => { const el = EL; st.cfg.digestTime = el.value || '08:00'; save(); send({ cmd: 'reschedule' }); };
 ACT.setDayCfg = (wd) => {
@@ -1133,7 +1134,7 @@ function viewNow() {
   if (focusOn) main = timerCard();
   else if (rec) {
     const qw = st.tasks.filter((t) => workable(t) && t.id !== rec.id && remaining(t) > 0 && remaining(t) <= 30).sort((a, b) => remaining(a) - remaining(b))[0];
-    main = '<div class="card nowcard">' + status + '<h1 class="nowt">' + esc(rec.t) + '</h1><div class="s nowmeta">' + tag(rec) + '<span' + (dueDays(rec) < 0 ? ' class="late"' : '') + '>' + reason(rec) + '</span><span>about ' + dur(remaining(rec) || need(rec)) + ' left</span>' + (rec.url ? '<a class="lnk" href="' + esc(rec.url) + '" target="_blank" rel="noopener">Open in Canvas ↗</a>' : '') + (canvasRef(rec) ? '<a class="lnk" href="#"' + C('getFiles', rec.id) + '>Get files</a>' : '') + '</div>' +
+    main = '<div class="card nowcard">' + status + '<h1 class="nowt"><span class="hl">' + esc(rec.t) + '</span></h1><div class="s nowmeta">' + tag(rec) + '<span' + (dueDays(rec) < 0 ? ' class="late"' : '') + '>' + reason(rec) + '</span><span>about ' + dur(remaining(rec) || need(rec)) + ' left</span>' + (rec.url ? '<a class="lnk" href="' + esc(rec.url) + '" target="_blank" rel="noopener">Open in Canvas ↗</a>' : '') + (canvasRef(rec) ? '<a class="lnk" href="#"' + C('getFiles', rec.id) + '>Get files</a>' : '') + '</div>' +
       '<div class="tmain nowact"><button class="btn"' + C('fStart', rec.id, fm === pw ? 0 : fm) + '>' + ico('play') + 'Start ' + fm + ' min focus</button><button class="btn sec"' + C('fStart', rec.id, 5) + '>Just 5 min</button></div>' +
       '<div class="quiet"><button class="tbtn"' + C('breakDown', rec.id) + '>I\'m stuck</button><button class="tbtn"' + C('cantNow', rec.id) + '>Can\'t do this yet</button><button class="tbtn"' + C('toggleAlt') + '>' + (showAlt ? 'Hide options' : 'Something else') + '</button></div>' + altPanel(rec.id) +
       (stuck && stuck.tid === rec.id ? '<div class="card stuck">' + esc(stuck.text).replace(/\n/g, '<br>') + '</div>' : '') +
@@ -1702,7 +1703,7 @@ function viewImport() {
 /* ---------- settings ---------- */
 function sysDark() { try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } }
 function applyTheme() {
-  const v = applyThemeVars(document.documentElement, st.cfg.theme, st.cfg.mode, sysDark());
+  const v = applyThemeVars(document.documentElement, st.cfg.theme, st.cfg.mode, sysDark(), st.cfg.paper);
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = v.bg;
 }
 try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) {}
@@ -1713,7 +1714,8 @@ function daysLabel(d) {
 }
 function viewSettings() {
   const c = st.cfg;
-  const theme = '<div class="card"><h3>Theme color</h3><div style="display:flex;gap:10px;flex-wrap:wrap">' + Object.keys(THEMES).map((k) => '<button class="sw' + ((c.theme || 'ink') === k ? ' on' : '') + '" style="background:linear-gradient(135deg,' + THEMES[k].light + ' 50%,' + THEMES[k].dark + ' 50%)" title="' + THEMES[k].name + '"' + C('setTheme', k) + '></button>').join('') + '</div>' +
+  const theme = '<div class="card"><h3>Pen color</h3><div class="pens">' + Object.keys(THEMES).map((k) => '<button class="sw' + ((c.theme || 'ink') === k ? ' on' : '') + '" style="--sw:' + THEMES[k].light + ';--swd:' + THEMES[k].dark + '" aria-label="' + THEMES[k].name + '" title="' + THEMES[k].name + '"' + C('setTheme', k) + '></button>').join('') + '</div>' +
+    '<h3 style="margin-top:14px">Paper</h3><div class="papers">' + Object.keys(PAPERS).map((k) => '<button class="pp pp-' + k + ((c.paper || 'dots') === k ? ' on' : '') + '"' + C('setPaper', k) + '><span></span>' + PAPERS[k] + '</button>').join('') + '</div>' +
     '<h3 style="margin-top:14px">Mode</h3><div class="seg" style="margin:0">' + Object.keys(MODES).map((k) => [k, MODES[k]]).map((m) => '<button class="' + ((c.mode || 'auto') === m[0] ? 'on' : '') + '"' + C('setMode', m[0]) + '>' + m[1] + '</button>').join('') + '</div></div>';
   const feel = '<div class="card"><h3>Feel & reminders</h3>' +
     '<div class="check"><input type="checkbox" id="fx1"' + (c.fx !== false ? ' checked' : '') + CH('setFlag', 'fx') + '><label for="fx1">Celebrations (confetti)</label></div>' +

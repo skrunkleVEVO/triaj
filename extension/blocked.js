@@ -27,7 +27,7 @@ async function load() {
   const r = await send('block.state', { h: host }).catch(() => null);
   if (!r) return;
   t = r.timer;
-  if (r.vars) ['bg', 'card', 'ink', 'mute', 'line', 'soft', 'pri', 'onpri', 'now', 'later'].forEach((k) => { if (r.vars[k]) document.documentElement.style.setProperty('--' + k, r.vars[k]); });
+  if (r.vars) ['bg', 'card', 'ink', 'mute', 'line', 'soft', 'pri', 'onpri', 'now', 'later', 'grid', 'hlnow', 'hlink'].forEach((k) => { if (r.vars[k]) document.documentElement.style.setProperty('--' + k, r.vars[k]); });
   $('on').textContent = r.task ? 'You\'re working on ' + r.task + '.' : 'Left in this focus round.';
   document.title = (t.status === 'running' && t.phase === 'work' ? fmt(Math.max(0, Math.round((t.endAt - Date.now()) / 1000))) + ' · ' : '') + 'Back to focus';
   paint();
