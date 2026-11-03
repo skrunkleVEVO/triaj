@@ -77,7 +77,7 @@ a.btn{text-decoration:none;box-sizing:border-box}
 .chk{border-width:1.5px;cursor:pointer}
 .chk:active{transform:scale(.92)}
 .item{border-radius:var(--r-sm);border-bottom-color:color-mix(in srgb,var(--line) 60%,transparent)}
-.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tbtn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 8px;border:0;border-radius:var(--r-sm);background:none;color:var(--mute);font-size:13px;font-weight:550;cursor:pointer;white-space:nowrap}
 .tbtn.more{margin:8px 0 -4px -8px}
 .iconbtn{display:inline-grid;place-items:center;width:32px;height:32px;flex:none;padding:0;border:0;border-radius:var(--r-sm);background:none;color:var(--mute);cursor:pointer}
@@ -188,8 +188,8 @@ a.btn{text-decoration:none;box-sizing:border-box}
 .achead{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:9px 14px;border:0;background:none;color:var(--ink);text-align:left;cursor:pointer}
 .achead .t{display:flex;flex-direction:column;flex:1;min-width:0}
 .achead b{font:600 14px var(--display)}
-.achead .ic{color:var(--mute);transition:transform 200ms var(--ease-out)}
-.acc.open .achead .ic{transform:rotate(180deg)}
+.achead svg.ic{color:var(--mute);transition:transform 200ms var(--ease-out)}
+.acc.open .achead svg.ic{transform:rotate(180deg)}
 .acbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows 220ms var(--ease-out)}
 .acin{min-height:0;overflow:hidden;visibility:hidden;transition:visibility 220ms}
 .acc.open .acbody{grid-template-rows:1fr}
@@ -247,7 +247,7 @@ footer{font-size:12px;padding:16px 10px 8px}
 .fxnote{margin-top:12px}
 .fgroup{border-radius:var(--r-md)}
 .fic{display:grid;place-items:center;width:18px;color:var(--mute)}
-.fic .ic{width:15px;height:15px}
+.fic svg.ic{width:15px;height:15px}
 .dlbar{border-radius:var(--r-md);transition:none}
 
 .boot{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24vh 0;color:var(--mute);font-size:14px}

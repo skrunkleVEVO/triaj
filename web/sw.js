@@ -1,6 +1,6 @@
 // Triaj service worker (whole site): makes Triaj installable and usable offline, and handles
 // notification clicks. Network first, so a new version shows up right away; the last copy is used offline.
-const CACHE = 'triaj-v5';
+const CACHE = 'triaj-v6';
 self.addEventListener('install', (e) => {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './app/', './app/app.css', './assets/fonts/fonts.css']).catch(() => {})));
